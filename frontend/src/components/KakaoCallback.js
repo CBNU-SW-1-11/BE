@@ -9,36 +9,37 @@ const KakaoCallback = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const processedRef = useRef(false);
-
   useEffect(() => {
     const processKakaoLogin = async () => {
       if (processedRef.current) return;
       
       const code = new URLSearchParams(location.search).get('code');
+      console.log('Received code:', code);  // 코드 로깅
       if (!code) return;
 
       processedRef.current = true;
 
       try {
         const response = await fetch(`http://localhost:8000/api/auth/kakao/callback/?code=${code}`);
+        console.log('Response status:', response.status);  // 응답 상태 로깅
         const data = await response.json();
+        console.log('Response data:', data);  // 응답 데이터 로깅
         
         if (!response.ok) {
           throw new Error(data.error || '카카오 로그인 실패');
         }
         
         dispatch(loginSuccess(data.user));
-        navigate('/');  // ChatInterface로 리다이렉트
+        navigate('/');
       } catch (error) {
         console.error('Kakao login error:', error);
         dispatch(loginFailure(error.message));
-        navigate('/');  // 에러 발생 시에도 메인 페이지로 리다이렉트
+        navigate('/');
       }
     };
 
     processKakaoLogin();
-  }, [dispatch, navigate, location]);
-
+}, [dispatch, navigate, location]);
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-md">

@@ -12,7 +12,6 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
-
 class SocialAccount(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -21,6 +20,7 @@ class SocialAccount(models.Model):
     )
     provider = models.CharField(max_length=30)
     email = models.EmailField()
+    nickname = models.CharField(max_length=100, blank=True, null=True)  # 닉네임 필드 추가
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -28,7 +28,7 @@ class SocialAccount(models.Model):
         unique_together = ('provider', 'email')
         verbose_name = _('소셜 계정')
         verbose_name_plural = _('소셜 계정들')
-        app_label = 'chat'  # 앱 레이블을 chat으로 명시
+        app_label = 'chat'
 
     def __str__(self):
         return f"{self.user.email} - {self.provider}"

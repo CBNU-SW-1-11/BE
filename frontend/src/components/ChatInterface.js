@@ -26,11 +26,27 @@ const ChatInterface = () => {
     { title: "텍스트 분석", desc: "이력서를 위한 강력한 문구 생성" },
     { title: "문제 해결", desc: "빠른 문제 해결 방법 제안" },
   ];
-
   const handleKakaoLogin = () => {
-    const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=${process.env.REACT_APP_KAKAO_CLIENT_ID}&redirect_uri=${process.env.REACT_APP_KAKAO_REDIRECT_URI}&scope=profile_nickname,account_email&prompt=login`;
+    console.log("=== Kakao Login Start ===");
+    const clientId = process.env.REACT_APP_KAKAO_CLIENT_ID;
+    const redirectUri = process.env.REACT_APP_KAKAO_REDIRECT_URI;
+    
+    // 환경 변수 확인
+    if (!clientId || !redirectUri) {
+        console.error("Missing environment variables:");
+        console.error("KAKAO_CLIENT_ID:", clientId);
+        console.error("KAKAO_REDIRECT_URI:", redirectUri);
+        return;
+    }
+    
+
+    const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=profile_nickname,account_email&prompt=login`;
+    
+    console.log("Kakao Auth URL:", kakaoAuthUrl);
     window.location.href = kakaoAuthUrl;
-  };
+};
+
+
 
   const googleLogin = useGoogleLogin({
     onSuccess: async (codeResponse) => {
@@ -164,50 +180,46 @@ const ChatInterface = () => {
         )}
 {/* 로그인 모달 */}
 {isLoginModalOpen && (
-  <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-    <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative flex flex-col items-center">
-      <X className="absolute top-3 right-3 w-6 h-6 cursor-pointer" onClick={() => setIsLoginModalOpen(false)} />
-      <h2 className="text-2xl font-bold">AI OF AI</h2>
-      <p className="text-sm text-gray-600 mb-4">AI 통합 기반 답변 최적화 플랫폼</p>
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative flex flex-col items-center">
+            <X className="absolute top-3 right-3 w-6 h-6 cursor-pointer" onClick={() => setIsLoginModalOpen(false)} />
+            <h2 className="text-2xl font-bold">AI OF AI</h2>
+            <p className="text-sm text-gray-600 mb-4">AI 통합 기반 답변 최적화 플랫폼</p>
 
-      {user ? (
-        // 로그인된 상태
-        <div className="w-full space-y-4">
-          <div className="bg-green-100 border border-green-400 text-green-700 p-4 rounded">
-            <p>환영합니다, {user.nickname || user.username}님!</p>
-            <p>이메일: {user.email}</p>
+            {user ? (
+              <div className="w-full space-y-4">
+                <div className="bg-green-100 border border-green-400 text-green-700 p-4 rounded">
+                  <p>환영합니다, {user.nickname || user.username}님!</p>
+                  <p>이메일: {user.email}</p>
+                </div>
+                <button
+                  onClick={() => setIsLoginModalOpen(false)}
+                  className="w-full bg-indigo-600 text-white p-2 rounded hover:bg-indigo-700"
+                >
+                  계속하기
+                </button>
+              </div>
+            ) : (
+              <>
+                <button onClick={googleLogin} disabled={isLoading} className="w-full bg-gray-300 p-2 rounded mb-2">
+                  {isLoading ? "로그인 중..." : "Google로 로그인"}
+                </button>
+                <button onClick={handleKakaoLogin} disabled={isLoading} className="w-full bg-gray-300 p-2 rounded mb-2">
+                  Kakao로 로그인
+                </button>
+                <button className="w-full bg-gray-300 p-2 rounded mb-4">Naver로 로그인</button>
+                <hr className="w-full border-gray-400 mb-4" />
+                <input type="email" placeholder="이메일" className="w-full p-2 border rounded mb-2" />
+                <input type="password" placeholder="비밀번호" className="w-full p-2 border rounded mb-2" />
+                <div className="text-xs text-gray-600 flex justify-between w-full">
+                  <span>비밀번호를 잊으셨나요?</span> <span className="text-blue-500 cursor-pointer">비밀번호 찾기</span>
+                </div>
+                <button className="w-full bg-gray-800 text-white p-2 rounded mt-4">로그인</button>
+              </>
+            )}
           </div>
-          <button
-            onClick={() => setIsLoginModalOpen(false)}
-            className="w-full bg-indigo-600 text-white p-2 rounded hover:bg-indigo-700"
-          >
-            계속하기
-          </button>
-      
-   
         </div>
-      ) : (
-        // 로그인되지 않은 상태
-        <>
-          <button onClick={googleLogin} disabled={isLoading} className="w-full bg-gray-300 p-2 rounded mb-2">
-            {isLoading ? "로그인 중..." : "Google로 로그인"}
-          </button>
-          <button onClick={handleKakaoLogin} disabled={isLoading} className="w-full bg-gray-300 p-2 rounded mb-2">
-            Kakao로 로그인
-          </button>
-          <button className="w-full bg-gray-300 p-2 rounded mb-4">Naver로 로그인</button>
-          <hr className="w-full border-gray-400 mb-4" />
-          <input type="email" placeholder="이메일" className="w-full p-2 border rounded mb-2" />
-          <input type="password" placeholder="비밀번호" className="w-full p-2 border rounded mb-2" />
-          <div className="text-xs text-gray-600 flex justify-between w-full">
-            <span>비밀번호를 잊으셨나요?</span> <span className="text-blue-500 cursor-pointer">비밀번호 찾기</span>
-          </div>
-          <button className="w-full bg-gray-800 text-white p-2 rounded mt-4">로그인</button>
-        </>
       )}
-    </div>
-  </div>
-)}
 
         {/* 로그인 모달
         {isLoginModalOpen && (
