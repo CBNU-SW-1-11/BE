@@ -10,7 +10,9 @@ from . import views
 
 
 urlpatterns = [
+    path('api/auth/kakao/callback/', views.kakao_callback, name='kakao_callback'),
     path('chat/<str:bot_name>/', ChatView.as_view(), name='chat'),
+    
 
     
 
@@ -26,11 +28,9 @@ urlpatterns = [
 
     path('auth/google/callback/', views.google_callback, name='google_callback'),
     path('api/auth/google/callback/', google_callback, name='google_callback'),
-    path('auth/kakao/callback/', views.kakao_callback, name='kakao_callback'),
 
 
     # 사용자 정보 조회 엔드포인트
-    path('api/auth/kakao/callback/', views.kakao_callback, name='kakao_callback'),
 
     # dj-rest-auth의 URL 연결
     path('auth/', include('dj_rest_auth.urls')),

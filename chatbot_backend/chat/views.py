@@ -133,7 +133,6 @@ class ChatView(APIView):
             return Response({'response': response})
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-     # chat/views.py
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -238,112 +237,20 @@ def google_callback(request):
             {'error': str(e)}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-    # chat/views.py
-import json
-import logging
-from django.conf import settings  # settings import 추가
-from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
 import requests
-from django.contrib.auth import get_user_model
-from .serializers import UserSerializer
-from .models import SocialAccount
-# chat/views.py
 import json
-import logging
+import requests
 from django.conf import settings
-from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
-import requests
-from django.contrib.auth import get_user_model
-from .serializers import UserSerializer
-from .models import SocialAccount
-
-logger = logging.getLogger(__name__)
-User = get_user_model()
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def google_callback(request):
-    try:
-        auth_header = request.headers.get('Authorization', '')
-        if not auth_header.startswith('Bearer '):
-            return Response(
-                {'error': '잘못된 인증 헤더'}, 
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-        
-        access_token = auth_header.split(' ')[1]
-
-        user_info_response = requests.get(
-            'https://www.googleapis.com/oauth2/v3/userinfo',
-            headers={'Authorization': f'Bearer {access_token}'}
-        )
-
-        if user_info_response.status_code != 200:
-            return Response(
-                {'error': 'Google에서 사용자 정보를 가져오는데 실패했습니다'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        user_info = user_info_response.json()
-        email = user_info.get('email')
-        name = user_info.get('name')
-        
-        if not email:
-            return Response(
-                {'error': '이메일이 제공되지 않았습니다'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # 사용자 생성 또는 가져오기
-        user, created = User.objects.get_or_create(
-            email=email,
-            defaults={
-                'username': name or email.split('@')[0],
-                'is_active': True
-            }
-        )
-
-
-
-        # 소셜 계정 생성 또는 업데이트
-        social_account, _ = SocialAccount.objects.update_or_create(
-            email=email,
-            provider='google',
-            defaults={
-                'user': user,
-                'nickname': name
-            }
-        )
-
-        serializer = UserSerializer(user)
-        return Response({
-            'user': {
-                **serializer.data,
-                'loginType': 'google'  # 구글 로그인 타입 추가
-            },
-            'access_token': access_token,
-        })
-
-    except Exception as e:
-        logger.exception("Error in google_callback")
-        return Response(
-            {'error': str(e)}, 
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-    
+from django.http import JsonResponse
+from django.shortcuts import redirect
+from .models import User  # User 모델을 임포트
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def kakao_callback(request):
     try:
         auth_code = request.GET.get('code')
         logger.info(f"Received Kakao auth code: {auth_code}")
-
+        
         # 카카오 토큰 받기
         token_url = "https://kauth.kakao.com/oauth/token"
         data = {
@@ -352,59 +259,105 @@ def kakao_callback(request):
             "redirect_uri": settings.KAKAO_REDIRECT_URI,
             "code": auth_code,
         }
+        
         token_response = requests.post(token_url, data=data)
+        
         if not token_response.ok:
-            return Response({'error': '카카오 토큰 받기 실패'}, status=status.HTTP_400_BAD_REQUEST)
-
+            return Response({
+                'error': '카카오 토큰 받기 실패',
+                'details': token_response.text
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         token_data = token_response.json()
         access_token = token_data.get('access_token')
+        
         if not access_token:
-            return Response({'error': '액세스 토큰 없음'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'error': '액세스 토큰 없음',
+                'details': token_data
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         # 카카오 사용자 정보 받기
         user_info_url = "https://kapi.kakao.com/v2/user/me"
-        headers = {"Authorization": f"Bearer {access_token}"}
-        user_info_response = requests.get(user_info_url, headers=headers)
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-type": "application/x-www-form-urlencoded;charset=utf-8"
+        }
+        
+        user_info_response = requests.get(
+            user_info_url,
+            headers=headers,
+            params={
+                'property_keys': json.dumps([
+                    "kakao_account.email",
+                    "kakao_account.profile",
+                    "kakao_account.name"
+                ])
+            }
+        )
+        
         if not user_info_response.ok:
-            return Response({'error': '사용자 정보 받기 실패'}, status=status.HTTP_400_BAD_REQUEST)
-
+            return Response({
+                'error': '사용자 정보 받기 실패',
+                'details': user_info_response.text
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         user_info = user_info_response.json()
         kakao_account = user_info.get('kakao_account', {})
         email = kakao_account.get('email')
         profile = kakao_account.get('profile', {})
         nickname = profile.get('nickname')
-
+        
         logger.info(f"Kakao user info - email: {email}, nickname: {nickname}")
-
+        
         if not email:
-            return Response({'error': '이메일 정보 없음'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'error': '이메일 정보 없음',
+                'details': '카카오 계정의 이메일 정보가 필요합니다.'
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-        # 사용자 생성 또는 가져오기
-        user, created = User.objects.get_or_create(
-            email=email,
-            defaults={'username': nickname, 'is_active': True}
-        )
-        if not created:
-            user.username = nickname  # 닉네임 업데이트
+        # 사용자 생성 또는 업데이트
+        try:
+            user = User.objects.get(email=email)
+            # 기존 사용자의 경우 닉네임 업데이트
+            user.username = nickname
             user.save()
+            logger.info(f"Updated existing user with nickname: {nickname}")
+        except User.DoesNotExist:
+            # 새 사용자 생성
+            user = User.objects.create(
+                email=email,
+                username=nickname,  # 닉네임을 username으로 사용
+                is_active=True
+            )
+            logger.info(f"Created new user with nickname: {nickname}")
 
         # 소셜 계정 생성 또는 업데이트
         social_account, _ = SocialAccount.objects.update_or_create(
-            user=user,
+            email=email,
             provider='kakao',
-            defaults={'email': email, 'nickname': nickname}
+            defaults={
+                'user': user,
+                'nickname': nickname
+            }
         )
-
+        
         logger.info(f"Social account updated - email: {email}, nickname: {nickname}")
 
         serializer = UserSerializer(user)
         response_data = {
-            'user': {**serializer.data, 'loginType': 'kakao'},
+            'user': {
+                **serializer.data,
+                'loginType': 'kakao'
+            },
             'access_token': access_token
         }
-
+        logger.info(f"Response data: {response_data}")
+        
         return Response(response_data)
-
+        
     except Exception as e:
         logger.exception("Unexpected error in kakao_callback")
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

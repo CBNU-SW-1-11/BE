@@ -68,6 +68,77 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.load_extra_data',
     'social_core.pipeline.user.user_details',
 )
+# settings.py
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
+}
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+}
+GOOGLE_OAUTH2_SCOPES = [
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'openid'
+]
+SOCIAL_AUTH = {
+    'REACT_APP_KAKAO_CLIENT_ID': '8bfca9df8364fead1243d41c773ec5a2',
+    'REACT_APP_KAKAO_REDIRECT_URI': 'http://localhost:3000/auth/kakao/callback',
+    'GOOGLE_CLIENT_ID': '94821981810-32iorb0jccvsdi4jq3pp3mc6rvmb0big.apps.googleusercontent.com',
+    'GOOGLE_SECRET_KEY': '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',
+    'GOOGLE_REDIRECT_URI': 'http://localhost:8000/api/auth/google/callback'
+}
+
+
+
+AUTHENTICATION_BACKENDS = (
+    'social_core.backends.google.GoogleOAuth2',
+    'django.contrib.auth.backends.ModelBackend',  # Keep the default backend
+)
+
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '<your-google-client-id>'
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '<your-google-client-secret>'
+
+# Add necessary REST Framework and OAuth2 settings
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_social_oauth2.authentication.SocialAuthentication',
+    ],
+}
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend'
+]
+
+SITE_ID = 1
+
+
+# Social Auth 설정
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APP': {
+            'client_id': 'your-google-client-id',
+            'secret': 'your-google-client-secret',
+            'key': ''
+        },
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+    },
+    'kakao': {
+        'APP': {
+            'client_id': 'your-kakao-client-id',
+            'secret': 'your-kakao-client-secret',
+            'key': ''
+        }
+    }
+}
+
 
 
 # CORS 설정
@@ -82,11 +153,6 @@ GOOGLE_SECRET_KEY = os.getenv('GOOGLE_SECRET_KEY')
 GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI')
 
 # CORS 설정
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-]
-
 
 
 REST_FRAMEWORK = {
@@ -121,17 +187,23 @@ INSTALLED_APPS = [
     'corsheaders',
     'django.contrib.sites',
     
+    'rest_framework_social_oauth2',
 
-    'dj_rest_auth',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.kakao',
+    
+
+    'dj_rest_auth',
+
 
     'chat.apps.ChatConfig',
 ]
-AUTH_USER_MODEL = 'chat.User'
+AUTH_USER_MODEL = 'auth.User' 
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '94821981810-ftg2njljaurf7p50vpgs24bimkc7mfcg.apps.googleusercontent.com'
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # 최상단에 위치
     'django.middleware.security.SecurityMiddleware',
@@ -152,7 +224,6 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 
-CORS_ALLOW_CREDENTIALS = True
 
 
 # settings.py
@@ -209,9 +280,7 @@ CSRF_COOKIE_SAMESITE = 'Lax'  # 또는 'None'
 CSRF_TRUSTED_ORIGINS = ['http://localhost:3000']
 
 # CORS 설정
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-]
+
 SECRET_KEY = 'fl)a4kismb2m2=vhr+g2u!yn#q#z51=!4t1ftu)^-6lvm!_%bg'
 
 
