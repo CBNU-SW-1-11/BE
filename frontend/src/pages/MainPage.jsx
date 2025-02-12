@@ -36,7 +36,11 @@ const MainPage = () => {
       </div>
 
       {/* 설정 모달 */}
-      {isSettingVisible && <Settingbar onClose={() => setIsSettingVisible(false)} />}
+      {/* {isSettingVisible && <Settingbar onClose={() => setIsSettingVisible(false)} />} */}
+      <Settingbar 
+        isOpen={isSettingVisible} 
+        onClose={() => setIsSettingVisible(false)} 
+      />
     </div>
   );
 };

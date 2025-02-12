@@ -19,13 +19,7 @@ AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',
     'allauth.account.auth_backends.AuthenticationBackend',
 )
-# settings.py
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',  # SQLite 사용
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+
 AUTHENTICATION_BACKENDS = (
     'allauth.account.auth_backends.AuthenticationBackend',
     'django.contrib.auth.backends.ModelBackend',
@@ -91,8 +85,10 @@ SOCIAL_AUTH = {
     'GOOGLE_SECRET_KEY': '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',
     'GOOGLE_REDIRECT_URI': 'http://localhost:8000/api/auth/google/callback'
 }
-
-
+# settings.py
+NAVER_CLIENT_ID = 'ZjUi3kZpQGpMuGCeQStJ'
+NAVER_CLIENT_SECRET = 'SXK_WdyPuU'
+NAVER_REDIRECT_URI = 'http://localhost:3000/auth/naver/callback'
 
 AUTHENTICATION_BACKENDS = (
     'social_core.backends.google.GoogleOAuth2',
@@ -164,8 +160,12 @@ REST_FRAMEWORK = {
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'ai_of_ai',  # 원하는 데이터베이스 이름
+        'USER': 'root',                # MySQL 사용자명
+        'PASSWORD': 'k13976376',   # MySQL 비밀번호
+        'HOST': 'localhost',
+        'PORT': '3306',
     }
 }
 

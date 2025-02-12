@@ -1,0 +1,3 @@
+REACT_APP_GOOGLE_CLIENT_ID=94821981810-ftg2njljaurf7p50vpgs24bimkc7mfcg.apps.googleusercontent.com
+REACT_APP_KAKAO_CLIENT_ID=f5801e85b8b13cb3a7eae523c95351a2
+REACT_APP_KAKAO_REDIRECT_URI=http://localhost:3000/auth/kakao/callback

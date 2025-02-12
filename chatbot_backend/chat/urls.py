@@ -1,6 +1,6 @@
 from django import views
 from django.urls import path
-from .views import ChatView, google_callback
+from .views import ChatView, google_callback, naver_callback
 from django.urls import path, include
 
 from django.urls import path
@@ -12,7 +12,8 @@ from . import views
 urlpatterns = [
     path('api/auth/kakao/callback/', views.kakao_callback, name='kakao_callback'),
     path('chat/<str:bot_name>/', ChatView.as_view(), name='chat'),
-    
+    path('auth/naver/callback/', naver_callback, name='naver_callback'),
+    # path('api/analyze_responses/', views.analyze_responses, name='analyze_responses'),
 
     
 

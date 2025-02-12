@@ -8,8 +8,17 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+from django.db import models
+from django.contrib.auth.models import AbstractUser
+from django.utils.translation import gettext_lazy as _
+
 class User(AbstractUser):
     email = models.EmailField(_('이메일 주소'), unique=True)
+    username = models.CharField(  # username 필드 재정의
+        _('username'),
+        max_length=150,
+        unique=False,  # unique 제약 제거
+    )
 
     groups = models.ManyToManyField(
         'auth.Group', related_name='chat_user_set', blank=True

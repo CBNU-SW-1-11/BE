@@ -1,61 +1,117 @@
 
+// Settingbar.js
 import React, { useState, useEffect } from 'react';
-
-import { Settings, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginSuccess, loginFailure } from '../store/authSlice';
 import { useGoogleLogin } from '@react-oauth/google';
 
-const Settingbar = () => {
+const Settingbar = ({ isOpen, onClose }) => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
-  const [isSettingModalOpen, setIsSettingModalOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [nickname, setNickname] = useState('');
   const [isLoading, setLoading] = useState(false);
 
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
-  const handleKakaoLogin = async () => {
-        const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=${process.env.REACT_APP_KAKAO_CLIENT_ID}&redirect_uri=${process.env.REACT_APP_KAKAO_REDIRECT_URI}&scope=profile_nickname,account_email&prompt=login`;
-        window.location.href = kakaoAuthUrl; // 카카오 로그인 페이지로 리디렉션
-      };
-      
-      const handleKakaoCallback = async (code) => {
-        setLoading(true);
-        try {
-          const backendResponse = await fetch(`http://localhost:8000/api/auth/kakao/callback/?code=${code}`, {
-            method: 'GET',
-            credentials: 'include',
-          });
-      
-          if (!backendResponse.ok) {
-            const errorData = await backendResponse.json();
-            throw new Error(errorData.error || '카카오 로그인 실패');
-          }
-      
-          const data = await backendResponse.json();
-          dispatch(loginSuccess(data.user));
-          setIsLoginModalOpen(false); // 로그인 모달 닫기
-        } catch (error) {
-          console.error('로그인 에러:', error);
-          dispatch(loginFailure(error.message)); // 실패 시 상태 업데이트
-        } finally {
-          setLoading(false);
-        }
-      };
-      
-      useEffect(() => {
-        const queryParams = new URLSearchParams(window.location.search);
-        const code = queryParams.get('code');
-        
-        if (code) {
-          handleKakaoCallback(code); // 카카오 로그인 후 콜백 처리
-        }
-      }, []);
-      
+
+  const handleNaverLogin = async () => {
+    localStorage.removeItem('naverState');
+    localStorage.removeItem('naverAccessToken');
     
+    const state = Math.random().toString(36).substr(2, 11);
+    const naverAuthUrl = `https://nid.naver.com/oauth2.0/authorize?` +
+        `response_type=code` +
+        `&client_id=${process.env.REACT_APP_NAVER_CLIENT_ID}` +
+        `&redirect_uri=${encodeURIComponent(process.env.REACT_APP_NAVER_REDIRECT_URI)}` +
+        `&state=${state}` +
+        `&auth_type=reauthenticate` +
+        `&prompt=consent` +
+        `&service_provider=NAVER` +
+        `&access_type=offline` +
+        `&include_granted_scopes=true`;
+    
+    localStorage.setItem('naverState', state);
+    window.location.href = naverAuthUrl;
+  };
+
+  const handleNaverCallback = async (code, state) => {
+    const savedState = localStorage.getItem('naverState');
+    if (state !== savedState) {
+      console.error('State mismatch');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const backendResponse = await fetch(`http://localhost:8000/auth/naver/callback/?code=${code}&state=${state}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!backendResponse.ok) {
+        const errorData = await backendResponse.json();
+        throw new Error(errorData.error || '네이버 로그인 실패');
+      }
+
+      const data = await backendResponse.json();
+      localStorage.setItem('naverAccessToken', data.access_token);
+      dispatch(loginSuccess(data.user));
+      setIsLoginModalOpen(false);
+      window.history.pushState({}, null, window.location.pathname);
+    } catch (error) {
+      console.error('로그인 에러:', error);
+      dispatch(loginFailure(error.message));
+    } finally {
+      setLoading(false);
+      localStorage.removeItem('naverState');
+    }
+  };
+
+  const handleKakaoLogin = async () => {
+    const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=${process.env.REACT_APP_KAKAO_CLIENT_ID}&redirect_uri=${process.env.REACT_APP_KAKAO_REDIRECT_URI}&scope=profile_nickname,account_email&prompt=login`;
+    window.location.href = kakaoAuthUrl;
+  };
+  
+  const handleKakaoCallback = async (code) => {
+    setLoading(true);
+    try {
+      const backendResponse = await fetch(`http://localhost:8000/api/auth/kakao/callback/?code=${code}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+  
+      if (!backendResponse.ok) {
+        const errorData = await backendResponse.json();
+        throw new Error(errorData.error || '카카오 로그인 실패');
+      }
+  
+      const data = await backendResponse.json();
+      dispatch(loginSuccess(data.user));
+      setIsLoginModalOpen(false);
+    } catch (error) {
+      console.error('로그인 에러:', error);
+      dispatch(loginFailure(error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    const queryParams = new URLSearchParams(window.location.search);
+    const code = queryParams.get('code');
+    const state = queryParams.get('state');
+    
+    if (code) {
+      if (state) {
+        handleNaverCallback(code, state);
+      } else {
+        handleKakaoCallback(code);
+      }
+    }
+  }, []);
+  
   const googleLogin = useGoogleLogin({
     onSuccess: async (codeResponse) => {
       setLoading(true);
@@ -91,74 +147,18 @@ const Settingbar = () => {
     },
   });
 
-  const handleSignUp = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('http://localhost:8000/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, nickname }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        dispatch(loginSuccess(data.user));
-        setIsLoginModalOpen(false);
-      } else {
-        throw new Error(data.error || '회원가입 실패');
-      }
-    } catch (error) {
-      console.error('회원가입 에러:', error);
-      dispatch(loginFailure(error.message));
-    } finally {
-      setLoading(false);
-    }
-  };
+
+  if (!isOpen) return null;
 
   return (
     <div>
-      {/* 설정 버튼 */}
-      <Settings
-        className="w-5 h-5 text-gray-600 cursor-pointer"
-        onClick={() => setIsSettingModalOpen(true)}
-      />
-
       {/* 설정 모달 */}
-      {/* {isSettingModalOpen && !isLoginModalOpen && !isSignupModalOpen && (
+      {!isLoginModalOpen && !isSignupModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative flex flex-col items-center">
             <X
               className="absolute top-3 right-3 w-6 h-6 cursor-pointer"
-              onClick={() => setIsSettingModalOpen(false)}
-            />
-            <h2 className="text-2xl font-bold">AI OF AI</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              AI 통합 기반 답변 최적화 플랫폼
-            </p>
-
-            {/* 로그인 & 회원가입 버튼 */}
-            {/* <button 
-              className="w-full bg-gray-300 p-2 rounded mb-2" 
-              onClick={() => setIsLoginModalOpen(true)}
-            >
-              로그인
-            </button>
-            <button 
-              className="w-full bg-gray-300 p-2 rounded mb-2" 
-              onClick={() => setIsSignupModalOpen(true)}
-            >
-              회원가입
-            </button>
-          </div>
-        </div>
-      )}  */}
-
-{/* 설정 모달 */}
-{isSettingModalOpen && !isLoginModalOpen && !isSignupModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative flex flex-col items-center">
-            <X
-              className="absolute top-3 right-3 w-6 h-6 cursor-pointer"
-              onClick={() => setIsSettingModalOpen(false)}
+              onClick={onClose}
             />
             <h2 className="text-2xl font-bold">AI OF AI</h2>
             <p className="text-sm text-gray-600 mb-4">
@@ -173,7 +173,7 @@ const Settingbar = () => {
                   <p>이메일: {user.email}</p>
                 </div>
                 <button
-                  onClick={() => setIsSettingModalOpen(false)}
+                  onClick={onClose}
                   className="w-full bg-indigo-600 text-white p-2 rounded hover:bg-indigo-700"
                 >
                   닫기
@@ -199,6 +199,7 @@ const Settingbar = () => {
           </div>
         </div>
       )}
+
       {/* 로그인 모달 */}
       {isLoginModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
@@ -217,7 +218,7 @@ const Settingbar = () => {
             <button className="w-full bg-gray-300 p-2 rounded mb-2" onClick={handleKakaoLogin}>
               Kakao로 로그인
             </button>
-            <button className="w-full bg-gray-300 p-2 rounded mb-4" onClick={() => alert('Naver login')}>
+            <button className="w-full bg-gray-300 p-2 rounded mb-4" onClick={handleNaverLogin}>
               Naver로 로그인
             </button>
             
@@ -258,8 +259,9 @@ const Settingbar = () => {
           </div>
         </div>
       )}
- {/* 회원가입 모달 */}
- {isSignupModalOpen && (
+
+      {/* 회원가입 모달 */}
+      {isSignupModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative flex flex-col items-center">
             <X
@@ -280,8 +282,8 @@ const Settingbar = () => {
               }}
             >
               Google로 회원가입
-              </button>
-              <button 
+            </button>
+            <button 
               className="w-full bg-gray-300 p-2 rounded mb-2"
               onClick={() => {
                 if(window.confirm('Kakao 계정으로 회원가입을 진행하시겠습니까?')) {
@@ -291,23 +293,31 @@ const Settingbar = () => {
             >
               Kakao로 회원가입
             </button>
-            <button className="w-full bg-gray-300 p-2 rounded mb-4">Naver로 회원가입</button>
+            <button 
+              className="w-full bg-gray-300 p-2 rounded mb-2"
+              onClick={() => {
+                if(window.confirm('Naver 계정으로 회원가입을 진행하시겠습니까?')) {
+                  handleNaverLogin();
+                }
+              }}
+            >
+              Naver로 회원가입
+            </button>
+          
             <div className="text-xs text-gray-600 mt-2">
-              이미 계정이 있으신가요?{' '}
+              계정이 없으신가요?{' '}
               <span className="text-blue-500 cursor-pointer" onClick={() => {
                 setIsSignupModalOpen(false);
                 setIsLoginModalOpen(true);
               }}>
-                로그인
+                회원가입
               </span>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
 
-
 export default Settingbar;
-
