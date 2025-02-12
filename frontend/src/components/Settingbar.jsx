@@ -293,17 +293,17 @@ const Settingbar = () => {
             </button>
             <button className="w-full bg-gray-300 p-2 rounded mb-4">Naver로 회원가입</button>
             <div className="text-xs text-gray-600 mt-2">
-              계정이 없으신가요?{' '}
+              이미 계정이 있으신가요?{' '}
               <span className="text-blue-500 cursor-pointer" onClick={() => {
                 setIsSignupModalOpen(false);
-                setIsLoginModalOpen(true); //나중에 회원가입 페이지로 이동하도록 수정해야함
+                setIsLoginModalOpen(true);
               }}>
-                회원가입
+                로그인
               </span>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
