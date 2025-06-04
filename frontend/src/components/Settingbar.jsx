@@ -1,322 +1,556 @@
+// // import React, { useState } from "react";
+// // import { X } from "lucide-react";
+// // import { useChat } from '../context/ChatContext'; // ChatContext import 추가
 
-// Settingbar.js
-import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import { useDispatch, useSelector } from 'react-redux';
-import { loginSuccess, loginFailure } from '../store/authSlice';
-import { useGoogleLogin } from '@react-oauth/google';
+// // const Settingbar = ({ isOpen, onClose }) => {
+// //   const [isLanguageSelectionOpen, setIsLanguageSelectionOpen] = useState(false);
+// //   const [selectedLanguage, setSelectedLanguage] = useState(null);
+// //   const [showConfirmButton, setShowConfirmButton] = useState(false);
+// //   const { 
+// //     isSelectionModalOpen, 
+// //     setIsSelectionModalOpen 
+// //   } = useChat(); // ChatContext의 모달 상태 사용
+  
+// //   const languages = [
+// //     "Afrikaans", "Bahasa Indonesia", "Bahasa Melayu", "Català", "Čeština", "Dansk", "Deutsch", 
+// //     "Eesti", "English (United Kingdom)", "English (United States)", "Español (España)", "Español (Latinoamérica)", 
+// //     "Euskara", "Filipino", "Français (Canada)", "Français (France)", "Galego", "Hrvatski", "IsiZulu", "Íslenska", 
+// //     "Italiano", "Kiswahili", "Latviešu", "Lietuvių", "Magyar", "Nederlands", "Norsk", "Polski", 
+// //     "Português (Brasil)", "Português (Portugal)", "Română", "Slovenčina", "Slovenščina", "Suomi", "Svenska", 
+// //     "Tiếng Việt", "Türkçe", "Ελληνικά", "Български", "Русский", "Српски", "Українська", "Հայերեն", "עברית", 
+// //     "اردو", "العربية", "فارسی", "मराठी", "हिन्दी", "বাংলা", "ગુજરાતી", "தமிழ்", "తెలుగు", "ಕನ್ನಡ", "മലയാളം", 
+// //     "ไทย", "한국어", "中文 (简体)", "中文 (繁體)", "日本語"
+// //   ];
+
+// //   const handleConfirm = () => {
+// //     setIsLanguageSelectionOpen(false);
+// //     setSelectedLanguage(null);
+// //     onClose();
+// //   };
+
+// //   return (
+// //     <>
+// //       {/* 메인 설정 모달 */}
+// //       {isOpen && !isLanguageSelectionOpen && !isSelectionModalOpen && (
+// //         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+// //           <div className="bg-white rounded-lg p-6 w-96 shadow-lg relative flex flex-col items-center">
+// //             <X className="absolute top-3 right-3 w-6 h-6 cursor-pointer" onClick={onClose} />
+// //             <h2 className="text-xl font-bold mb-4">설정</h2>
+// //             <div className="space-y-4 w-full">
+// //               <button
+// //                 className="w-full p-4 border rounded-lg hover:bg-blue-50 transition-colors font-bold"
+// //                 onClick={() => setIsLanguageSelectionOpen(true)}
+// //               >
+// //                 언어 선택
+// //               </button>
+// //               <button
+// //                 className="w-full p-4 border rounded-lg hover:bg-blue-50 transition-colors font-bold"
+// //                 onClick={() => setIsSelectionModalOpen(true)} // ChatContext의 모달 열기 함수 사용
+// //               >
+// //                 최적화 모델 선택
+// //               </button>
+// //             </div>
+// //           </div>
+// //         </div>
+// //       )}
+
+// //       {/* 언어 선택 모달 */}
+// //       {isLanguageSelectionOpen && (
+// //         <div 
+// //           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+// //         >
+// //           <div 
+// //             className="bg-white rounded-lg p-6 w-full max-w-md shadow-lg relative h-96 overflow-y-auto flex flex-col" 
+// //             onScroll={(e) => setShowConfirmButton(
+// //               e.target.scrollTop + e.target.clientHeight >= e.target.scrollHeight
+// //             )}
+// //           >
+// //             <h2 className="text-xl font-bold mb-4">언어 선택</h2>
+// //             <div className="grid grid-cols-2 gap-2 mb-6">
+// //               {languages.map((lang) => (
+// //                 <button
+// //                   key={lang}
+// //                   onClick={() => setSelectedLanguage(lang)}
+// //                   className={`p-2 border rounded-lg transition-colors ${
+// //                     selectedLanguage === lang ? "bg-blue-300" : "hover:bg-blue-50"
+// //                   }`}
+// //                 >
+// //                   {lang}
+// //                 </button>
+// //               ))}
+// //             </div>
+// //             <button 
+// //               className={`px-6 py-3 rounded-lg transition-colors self-end mt-auto shadow-md ${
+// //                 selectedLanguage
+// //                   ? "bg-blue-500 text-white hover:bg-blue-600"
+// //                   : "bg-gray-300 text-gray-500 cursor-not-allowed"
+// //               }`} 
+// //               onClick={handleConfirm}
+// //               disabled={!selectedLanguage}
+// //             >
+// //               확인
+// //             </button>
+// //           </div>
+// //         </div>
+// //       )}
+// //     </>
+// //   );
+// // };
+
+// // export default Settingbar;
+// import React, { useState, useEffect } from "react";
+// import { X } from "lucide-react";
+// import { useChat } from '../context/ChatContext';
+// import { useSelector, useDispatch } from 'react-redux';
+// import { updateUserSettings } from '../store/authSlice';
+//   const languages = [
+//     "Afrikaans", "Bahasa Indonesia", "Bahasa Melayu", "Català", "Čeština", "Dansk", "Deutsch", 
+//     "Eesti", "English (United Kingdom)", "English (United States)", "Español (España)", "Español (Latinoamérica)", 
+//     "Euskara", "Filipino", "Français (Canada)", "Français (France)", "Galego", "Hrvatski", "IsiZulu", "Íslenska", 
+//     "Italiano", "Kiswahili", "Latviešu", "Lietuvių", "Magyar", "Nederlands", "Norsk", "Polski", 
+//     "Português (Brasil)", "Português (Portugal)", "Română", "Slovenčina", "Slovenščina", "Suomi", "Svenska", 
+//     "Tiếng Việt", "Türkçe", "Ελληνικά", "Български", "Русский", "Српски", "Українська", "Հայերեն", "עברית", 
+//     "اردو", "العربية", "فارسی", "मराठी", "हिन्दी", "বাংলা", "ગુજરાતી", "தமிழ்", "తెలుగు", "ಕನ್ನಡ", "മലയാളം", 
+//     "ไทย", "한국어", "中文 (简体)", "中文 (繁體)", "日本語"
+//   ];
+// const Settingbar = ({ isOpen, onClose }) => {
+//   const [isLanguageSelectionOpen, setIsLanguageSelectionOpen] = useState(false);
+//   const [selectedLanguage, setSelectedLanguage] = useState(null);
+//   const [showConfirmButton, setShowConfirmButton] = useState(false);
+//   const { 
+//     isSelectionModalOpen, 
+//     setIsSelectionModalOpen,
+//     selectedModel,
+//     setSelectedModel 
+//   } = useChat();
+
+//   const dispatch = useDispatch();
+//   const { user } = useSelector((state) => state.auth);
+  
+//   // 초기 설정 로드
+//   useEffect(() => {
+//     if (user?.settings) {
+//       setSelectedLanguage(user.settings.language || null);
+//       if (setSelectedModel) {
+//         setSelectedModel(user.settings.preferredModel || 'default');
+//       }
+//     }
+//   }, [user, setSelectedModel]);
+
+//   // const saveSettings = async (settings) => {
+//   //   try {
+//   //     const token = localStorage.getItem("accessToken");
+//   //     if (!token) {
+//   //       throw new Error("인증 토큰이 없습니다.");
+//   //     }
+      
+//   //     // 현재 유저의 기존 설정값 가져오기
+//   //     const currentSettings = user?.settings || {};
+      
+//   //     // settings 객체 생성 (기존 설정 유지하면서 새로운 설정으로 업데이트)
+//   //     const settingsData = {
+//   //       language: settings?.language || currentSettings.language || selectedLanguage,
+//   //       preferredModel: settings?.preferredModel || currentSettings.preferredModel || selectedModel || 'default'
+//   //     };
+
+//   //     // 필수 필드 검증
+//   //     if (!settingsData.language) {
+//   //       throw new Error("언어 설정이 필요합니다.");
+//   //     }
+
+//   //     console.log('Sending settings:', settingsData);
+//   //     console.log('Using token:', token);
+
+//   //     const response = await fetch("http://localhost:8000/api/user/settings/", {
+//   //       method: "PUT",
+//   //       headers: {
+//   //         "Content-Type": "application/json",
+//   //         "Authorization": `Token ${token}`,
+//   //       },
+//   //       body: JSON.stringify(settingsData),
+//   //     });
+
+//   //     const data = await response.json();
+      
+//   //     if (!response.ok) {
+//   //       throw new Error(data.message || data.error || '설정 저장에 실패했습니다.');
+//   //     }
+
+//   //     console.log('Settings saved successfully:', data);
+      
+//   //     // Redux store 업데이트
+//   //     dispatch(updateUserSettings(settingsData));
+
+//   //     return data;
+//   //   } catch (error) {
+//   //     console.error('Error saving settings:', error);
+//   //     throw error;
+//   //   }
+//   // };
+//   const saveSettings = async (settings) => {
+//     try {
+//         const token = localStorage.getItem("accessToken");
+//         if (!token) {
+//             throw new Error("인증 토큰이 없습니다.");
+//         }
+
+//         const settingsData = {
+//             language: settings?.language || user?.settings?.language || 'en',
+//         };
+
+//         console.log('Sending settings:', settingsData);
+
+//         const response = await fetch("http://localhost:8000/api/user/settings/", {
+//             method: "PUT",
+//             headers: {
+//                 "Content-Type": "application/json",
+//                 "Authorization": `Token ${token}`,  // 토큰 형식 확인
+//             },
+//             body: JSON.stringify(settingsData),
+//             credentials: 'include',  // 쿠키 포함
+//         });
+
+//         if (!response.ok) {
+//             const errorData = await response.json();
+//             throw new Error(errorData.message || errorData.error || '설정 저장에 실패했습니다.');
+//         }
+
+//         const data = await response.json();
+//         console.log('Settings saved successfully:', data);
+        
+//         // Redux store 업데이트
+//         dispatch(updateUserSettings(data.settings));
+
+//         return data;
+//     } catch (error) {
+//         console.error('Error saving settings:', error);
+//         throw error;
+//     }
+// };
+//   const handleConfirm = async () => {
+//     if (!selectedLanguage) {
+//       alert('언어를 선택해주세요.');
+//       return;
+//     }
+
+//     try {
+//       await saveSettings({
+//         language: selectedLanguage,
+//       });
+//       setIsLanguageSelectionOpen(false);
+//       onClose();
+//     } catch (error) {
+//       alert(error.message || '설정 저장에 실패했습니다. 다시 시도해주세요.');
+//     }
+//   };
+
+//   const handleModelSelection = async (model) => {
+//     try {
+//       await saveSettings({
+//         language: selectedLanguage,
+//         preferredModel: model
+//       });
+//       setSelectedModel(model);
+//       setIsSelectionModalOpen(false);
+//     } catch (error) {
+//       alert(error.message || '모델 설정 저장에 실패했습니다. 다시 시도해주세요.');
+//     }
+//   };
+
+//   return (
+//     <>
+//       {/* 메인 설정 모달 */}
+//       {isOpen && !isLanguageSelectionOpen && !isSelectionModalOpen && (
+//         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+//           <div className="bg-white rounded-lg p-6 w-96 shadow-lg relative flex flex-col items-center">
+//             <X className="absolute top-3 right-3 w-6 h-6 cursor-pointer" onClick={onClose} />
+//             <h2 className="text-xl font-bold mb-4">설정</h2>
+//             <div className="space-y-4 w-full">
+//               <div className="w-full">
+//                 <button
+//                   className="w-full p-4 border rounded-lg hover:bg-blue-50 transition-colors font-bold"
+//                   onClick={() => setIsLanguageSelectionOpen(true)}
+//                 >
+//                   언어 선택
+//                 </button>
+//                 <p className="text-sm text-gray-500 mt-1 ml-2">
+//                   현재 언어: {user?.settings?.language || '설정되지 않음'}
+//                 </p>
+//               </div>
+//               <div className="w-full">
+//                 <button
+//                   className="w-full p-4 border rounded-lg hover:bg-blue-50 transition-colors font-bold"
+//                   onClick={() => setIsSelectionModalOpen(true)}
+//                 >
+//                   최적화 모델 선택
+//                 </button>
+//                 <p className="text-sm text-gray-500 mt-1 ml-2">
+//                   현재 모델: {user?.settings?.preferredModel || '설정되지 않음'}
+//                 </p>
+//               </div>
+//             </div>
+//           </div>
+//         </div>
+//       )}
+
+//       {/* 언어 선택 모달 */}
+//       {isLanguageSelectionOpen && (
+//         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+//           <div 
+//             className="bg-white rounded-lg p-6 w-full max-w-md shadow-lg relative h-96 overflow-y-auto flex flex-col"
+//             onScroll={(e) => setShowConfirmButton(
+//               e.target.scrollTop + e.target.clientHeight >= e.target.scrollHeight
+//             )}
+//           >
+//             <h2 className="text-xl font-bold mb-4">언어 선택</h2>
+//             <div className="grid grid-cols-2 gap-2 mb-6">
+//               {languages.map((lang) => (
+//                 <button
+//                   key={lang}
+//                   onClick={() => setSelectedLanguage(lang)}
+//                   className={`p-2 border rounded-lg transition-colors ${
+//                     selectedLanguage === lang ? "bg-blue-300" : "hover:bg-blue-50"
+//                   }`}
+//                 >
+//                   {lang}
+//                 </button>
+//               ))}
+//             </div>
+//             <button 
+//               className={`px-6 py-3 rounded-lg transition-colors self-end mt-auto shadow-md ${
+//                 selectedLanguage
+//                   ? "bg-blue-500 text-white hover:bg-blue-600"
+//                   : "bg-gray-300 text-gray-500 cursor-not-allowed"
+//               }`} 
+//               onClick={handleConfirm}
+//               disabled={!selectedLanguage}
+//             >
+//               확인
+//             </button>
+//           </div>
+//         </div>
+//       )}
+//     </>
+//   );
+// };
+
+// export default Settingbar;
+
+import React, { useState, useEffect } from "react";
+import { X } from "lucide-react";
+import { useChat } from '../context/ChatContext';
+import { useSelector, useDispatch } from 'react-redux';
+import { updateUserSettings } from '../store/authSlice';
+
+const languages = [
+  "Afrikaans", "Bahasa Indonesia", "Bahasa Melayu", "Català", "Čeština", "Dansk", "Deutsch", 
+  "Eesti", "English (United Kingdom)", "English (United States)", "Español (España)", "Español (Latinoamérica)", 
+  "Euskara", "Filipino", "Français (Canada)", "Français (France)", "Galego", "Hrvatski", "IsiZulu", "Íslenska", 
+  "Italiano", "Kiswahili", "Latviešu", "Lietuvių", "Magyar", "Nederlands", "Norsk", "Polski", 
+  "Português (Brasil)", "Português (Portugal)", "Română", "Slovenčina", "Slovenščina", "Suomi", "Svenska", 
+  "Tiếng Việt", "Türkçe", "Ελληνικά", "Български", "Русский", "Српски", "Українська", "Հայերեն", "עברית", 
+  "اردو", "العربية", "فارسی", "मराठी", "हिन्दी", "বাংলা", "ગુજરાતી", "தமிழ்", "తెలుగు", "ಕನ್ನಡ", "മലയാളം", 
+  "ไทย", "한국어", "中文 (简体)", "中文 (繁體)", "日本語"
+];
 
 const Settingbar = ({ isOpen, onClose }) => {
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setLoading] = useState(false);
+  const [isLanguageSelectionOpen, setIsLanguageSelectionOpen] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState(null);
+  const [showConfirmButton, setShowConfirmButton] = useState(false);
+  const [showLoginAlert, setShowLoginAlert] = useState(false);
+
+  const { 
+    isSelectionModalOpen, 
+    setIsSelectionModalOpen,
+    selectedModel,
+    setSelectedModel,
+    isLoggedIn
+  } = useChat();
 
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
+  
+  useEffect(() => {
+    if (user?.settings) {
+      setSelectedLanguage(user.settings.language || null);
+      if (setSelectedModel) {
+        setSelectedModel(user.settings.model || 'default');
+      }
+    }
+  }, [user, setSelectedModel]);
 
-  const handleNaverLogin = async () => {
-    localStorage.removeItem('naverState');
-    localStorage.removeItem('naverAccessToken');
-    
-    const state = Math.random().toString(36).substr(2, 11);
-    const naverAuthUrl = `https://nid.naver.com/oauth2.0/authorize?` +
-        `response_type=code` +
-        `&client_id=${process.env.REACT_APP_NAVER_CLIENT_ID}` +
-        `&redirect_uri=${encodeURIComponent(process.env.REACT_APP_NAVER_REDIRECT_URI)}` +
-        `&state=${state}` +
-        `&auth_type=reauthenticate` +
-        `&prompt=consent` +
-        `&service_provider=NAVER` +
-        `&access_type=offline` +
-        `&include_granted_scopes=true`;
-    
-    localStorage.setItem('naverState', state);
-    window.location.href = naverAuthUrl;
+  const handleSettingClick = () => {
+    if (!isLoggedIn) {
+      setShowLoginAlert(true);
+      setTimeout(() => setShowLoginAlert(false), 3000); // 3초 후 알림 닫기
+      return;
+    }
+    // 기존 기능 실행...
   };
 
-  const handleNaverCallback = async (code, state) => {
-    const savedState = localStorage.getItem('naverState');
-    if (state !== savedState) {
-      console.error('State mismatch');
+  const saveSettings = async (settings) => {
+    if (!isLoggedIn) {
+      setShowLoginAlert(true);
+      setTimeout(() => setShowLoginAlert(false), 3000);
       return;
     }
 
-    setLoading(true);
     try {
-      const backendResponse = await fetch(`http://localhost:8000/auth/naver/callback/?code=${code}&state=${state}`, {
-        method: 'GET',
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        throw new Error("인증 토큰이 없습니다.");
+      }
+
+      const settingsData = {
+        language: settings?.language || user?.settings?.language || 'en',
+      };
+           console.log('Sending settings:', settingsData);
+
+      const response = await fetch("http://localhost:8000/api/user/settings/", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Token ${token}`,
+        },
+        body: JSON.stringify(settingsData),
         credentials: 'include',
       });
 
-      if (!backendResponse.ok) {
-        const errorData = await backendResponse.json();
-        throw new Error(errorData.error || '네이버 로그인 실패');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || errorData.error || '설정 저장에 실패했습니다.');
       }
 
-      const data = await backendResponse.json();
-      localStorage.setItem('naverAccessToken', data.access_token);
-      dispatch(loginSuccess(data.user));
-      setIsLoginModalOpen(false);
-      window.history.pushState({}, null, window.location.pathname);
+      const data = await response.json();
+console.log('Settings saved successfully:', data);
+
+      dispatch(updateUserSettings(data.settings));
+      return data;
     } catch (error) {
-      console.error('로그인 에러:', error);
-      dispatch(loginFailure(error.message));
-    } finally {
-      setLoading(false);
-      localStorage.removeItem('naverState');
+      console.error('Error saving settings:', error);
+      throw error;
     }
   };
 
-  const handleKakaoLogin = async () => {
-    const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=${process.env.REACT_APP_KAKAO_CLIENT_ID}&redirect_uri=${process.env.REACT_APP_KAKAO_REDIRECT_URI}&scope=profile_nickname,account_email&prompt=login`;
-    window.location.href = kakaoAuthUrl;
-  };
-  
-  const handleKakaoCallback = async (code) => {
-    setLoading(true);
+  const handleConfirm = async () => {
+    if (!isLoggedIn) {
+      setShowLoginAlert(true);
+      setTimeout(() => setShowLoginAlert(false), 3000);
+      return;
+    }
+
+    if (!selectedLanguage) {
+      alert('언어를 선택해주세요.');
+      return;
+    }
+
     try {
-      const backendResponse = await fetch(`http://localhost:8000/api/auth/kakao/callback/?code=${code}`, {
-        method: 'GET',
-        credentials: 'include',
+      await saveSettings({
+        language: selectedLanguage,
       });
-  
-      if (!backendResponse.ok) {
-        const errorData = await backendResponse.json();
-        throw new Error(errorData.error || '카카오 로그인 실패');
-      }
-  
-      const data = await backendResponse.json();
-      dispatch(loginSuccess(data.user));
-      setIsLoginModalOpen(false);
+      setIsLanguageSelectionOpen(false);
+      onClose();
     } catch (error) {
-      console.error('로그인 에러:', error);
-      dispatch(loginFailure(error.message));
-    } finally {
-      setLoading(false);
+      alert(error.message || '설정 저장에 실패했습니다. 다시 시도해주세요.');
     }
   };
-  
-  useEffect(() => {
-    const queryParams = new URLSearchParams(window.location.search);
-    const code = queryParams.get('code');
-    const state = queryParams.get('state');
-    
-    if (code) {
-      if (state) {
-        handleNaverCallback(code, state);
-      } else {
-        handleKakaoCallback(code);
-      }
+
+  const handleModelSelection = async (model) => {
+    if (!isLoggedIn) {
+      setShowLoginAlert(true);
+      setTimeout(() => setShowLoginAlert(false), 3000);
+      return;
     }
-  }, []);
-  
-  const googleLogin = useGoogleLogin({
-    onSuccess: async (codeResponse) => {
-      setLoading(true);
-      try {
-        const backendResponse = await fetch('http://localhost:8000/api/auth/google/callback/', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${codeResponse.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-        });
 
-        if (!backendResponse.ok) {
-          const errorData = await backendResponse.json();
-          throw new Error(errorData.error || '구글 로그인 실패');
-        }
-
-        const data = await backendResponse.json();
-        dispatch(loginSuccess(data.user));
-        setIsLoginModalOpen(false);
-      } catch (error) {
-        console.error('로그인 에러:', error);
-        dispatch(loginFailure(error.message));
-      } finally {
-        setLoading(false);
-      }
-    },
-    onError: (error) => {
-      console.error('로그인 실패:', error);
-      dispatch(loginFailure('구글 로그인 실패'));
-      setLoading(false);
-    },
-  });
-
-
-  if (!isOpen) return null;
+    try {
+      await saveSettings({
+        language: selectedLanguage,
+        preferredModel: model
+      });
+      setSelectedModel(model);
+      setIsSelectionModalOpen(false);
+    } catch (error) {
+      alert(error.message || '모델 설정 저장에 실패했습니다. 다시 시도해주세요.');
+    }
+  };
 
   return (
-    <div>
-      {/* 설정 모달 */}
-      {!isLoginModalOpen && !isSignupModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative flex flex-col items-center">
-            <X
-              className="absolute top-3 right-3 w-6 h-6 cursor-pointer"
-              onClick={onClose}
-            />
-            <h2 className="text-2xl font-bold">AI OF AI</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              AI 통합 기반 답변 최적화 플랫폼
-            </p>
-
-            {user ? (
-              // 로그인된 상태
-              <div className="w-full space-y-4">
-                <div className="bg-green-100 border border-green-400 text-green-700 p-4 rounded">
-                  <p>환영합니다, {user.nickname || user.username}님!</p>
-                  <p>이메일: {user.email}</p>
-                </div>
+    <>
+      {/* 메인 설정 모달 */}
+      {isOpen && !isLanguageSelectionOpen && !isSelectionModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 shadow-lg relative flex flex-col items-center">
+            <X className="absolute top-3 right-3 w-6 h-6 cursor-pointer" onClick={onClose} />
+            <h2 className="text-xl font-bold mb-4">설정</h2>
+            <div className="space-y-4 w-full">
+              <div className="w-full">
                 <button
-                  onClick={onClose}
-                  className="w-full bg-indigo-600 text-white p-2 rounded hover:bg-indigo-700"
+                  className="w-full p-4 border rounded-lg hover:bg-blue-50 transition-colors font-bold"
+                  onClick={() => !isLoggedIn ? handleSettingClick() : setIsLanguageSelectionOpen(true)}
                 >
-                  닫기
+                  언어 선택
                 </button>
+       
               </div>
-            ) : (
-              // 비로그인 상태
-              <>
-                <button 
-                  className="w-full bg-gray-300 p-2 rounded mb-2" 
-                  onClick={() => setIsLoginModalOpen(true)}
+              <div className="w-full">
+                <button
+                  className="w-full p-4 border rounded-lg hover:bg-blue-50 transition-colors font-bold"
+                  onClick={() => !isLoggedIn ? handleSettingClick() : setIsSelectionModalOpen(true)}
                 >
-                  로그인
+                  최적화 모델 선택
                 </button>
-                <button 
-                  className="w-full bg-gray-300 p-2 rounded mb-2" 
-                  onClick={() => setIsSignupModalOpen(true)}
-                >
-                  회원가입
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 로그인 모달 */}
-      {isLoginModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative flex flex-col items-center">
-            <X
-              className="absolute top-3 right-3 w-6 h-6 cursor-pointer"
-              onClick={() => setIsLoginModalOpen(false)}
-            />
-            <h2 className="text-2xl font-bold">AI OF AI</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              AI 통합 기반 답변 최적화 플랫폼
-            </p>
-            <button className="w-full bg-gray-300 p-2 rounded mb-2" onClick={googleLogin}>
-              Google로 로그인
-            </button>
-            <button className="w-full bg-gray-300 p-2 rounded mb-2" onClick={handleKakaoLogin}>
-              Kakao로 로그인
-            </button>
-            <button className="w-full bg-gray-300 p-2 rounded mb-4" onClick={handleNaverLogin}>
-              Naver로 로그인
-            </button>
-            
-            <hr className="w-full border-gray-400 mb-4" />
-            <input
-              type="email"
-              placeholder="이메일"
-              className="w-full p-2 border rounded mb-2"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <input
-              type="password"
-              placeholder="비밀번호"
-              className="w-full p-2 border rounded mb-2"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <div className="text-xs text-gray-600 flex justify-between w-full">
-              <span>비밀번호를 잊으셨나요?</span>
-              <span className="text-blue-500 cursor-pointer">비밀번호 찾기</span>
-            </div>
-            <button
-              className="w-full bg-gray-800 text-white p-2 rounded mt-4"
-              onClick={() => alert('로그인 시도')}
-            >
-              로그인
-            </button>
-            <div className="text-xs text-gray-600 mt-2">
-              아직 계정이 없나요?{' '}
-              <span className="text-blue-500 cursor-pointer" onClick={() => {
-                setIsLoginModalOpen(false);
-                setIsSignupModalOpen(true);
-              }}>
-                회원가입
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 회원가입 모달 */}
-      {isSignupModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative flex flex-col items-center">
-            <X
-              className="absolute top-3 right-3 w-6 h-6 cursor-pointer"
-              onClick={() => setIsSignupModalOpen(false)}
-            />
-            <h2 className="text-2xl font-bold">AI OF AI</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              AI 통합 기반 답변 최적화 플랫폼
-            </p>
-           
-            <button 
-              className="w-full bg-gray-300 p-2 rounded mb-2" 
-              onClick={() => {
-                if(window.confirm('Google 계정으로 회원가입을 진행하시겠습니까?')) {
-                  googleLogin();
-                }
-              }}
-            >
-              Google로 회원가입
-            </button>
-            <button 
-              className="w-full bg-gray-300 p-2 rounded mb-2"
-              onClick={() => {
-                if(window.confirm('Kakao 계정으로 회원가입을 진행하시겠습니까?')) {
-                  handleKakaoLogin();
-                }
-              }}
-            >
-              Kakao로 회원가입
-            </button>
-            <button 
-              className="w-full bg-gray-300 p-2 rounded mb-2"
-              onClick={() => {
-                if(window.confirm('Naver 계정으로 회원가입을 진행하시겠습니까?')) {
-                  handleNaverLogin();
-                }
-              }}
-            >
-              Naver로 회원가입
-            </button>
           
-            <div className="text-xs text-gray-600 mt-2">
-              계정이 없으신가요?{' '}
-              <span className="text-blue-500 cursor-pointer" onClick={() => {
-                setIsSignupModalOpen(false);
-                setIsLoginModalOpen(true);
-              }}>
-                회원가입
-              </span>
+              </div>
             </div>
           </div>
         </div>
       )}
-    </div>
+
+      {/* 로그인 알림 메시지 */}
+      {showLoginAlert && (
+        <div className="fixed top-4 right-4 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in-out">
+          로그인 후 설정이 가능합니다.
+        </div>
+      )}
+
+      {/* 언어 선택 모달 - 로그인한 경우에만 표시 */}
+      {isLoggedIn && isLanguageSelectionOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div 
+            className="bg-white rounded-lg p-6 w-full max-w-md shadow-lg relative h-96 overflow-y-auto flex flex-col"
+            onScroll={(e) => setShowConfirmButton(
+              e.target.scrollTop + e.target.clientHeight >= e.target.scrollHeight
+            )}
+          >
+            <h2 className="text-xl font-bold mb-4">언어 선택</h2>
+            <div className="grid grid-cols-2 gap-2 mb-6">
+              {languages.map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => setSelectedLanguage(lang)}
+                  className={`p-2 border rounded-lg transition-colors ${
+                    selectedLanguage === lang ? "bg-blue-300" : "hover:bg-blue-50"
+                  }`}
+                >
+                  {lang}
+                </button>
+              ))}
+            </div>
+            <button 
+              className={`px-6 py-3 rounded-lg transition-colors self-end mt-auto shadow-md ${
+                selectedLanguage
+                  ? "bg-blue-500 text-white hover:bg-blue-600"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              }`} 
+              onClick={handleConfirm}
+              disabled={!selectedLanguage}
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

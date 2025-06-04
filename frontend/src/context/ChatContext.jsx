@@ -1,152 +1,403 @@
-
-
-// // Chat.js
 // import React, { createContext, useState, useContext, useRef, useEffect } from 'react';
+// import { useSelector } from 'react-redux';
 
 // // Context 생성
 // const ChatContext = createContext(null);
 
 // // 봇 선택 모달 컴포넌트
-// const SelectBotModal = ({ isOpen, onClose, onSelectBot }) => {
+// const SelectBotModal = ({ isOpen, onClose, onSelectBot, currentModel }) => {
+//   const [selectedAI, setSelectedAI] = useState(null);
+
+//   useEffect(() => {
+//     // 현재 모델에 따라 초기 선택 설정
+//     const reverseMapping = {
+//       'gpt': 'GPT-3.5',
+//       'claude': 'Claude', 
+//       'mixtral': 'Mixtral'
+//     };
+//     setSelectedAI(reverseMapping[currentModel]);
+//   }, [currentModel]);
+
+//   const handleConfirm = () => {
+//     if (selectedAI) {
+//       const botMapping = {
+//         'GPT-3.5': 'gpt',
+//         'Claude': 'claude',
+//         'Mixtral': 'mixtral'
+//       };
+//       onSelectBot(botMapping[selectedAI]);
+//       onClose();
+//     }
+//   };
+
 //   if (!isOpen) return null;
 
 //   return (
 //     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-//       <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
-//         <h2 className="text-xl font-bold mb-4">분석을 수행할 AI 선택</h2>
+//       <div className="bg-white rounded-lg p-6 w-full max-w-2xl shadow-lg relative pb-20">
+//         <h2 className="text-xl font-bold mb-4">최적화 모델 선택</h2>
 //         <div className="grid grid-cols-3 gap-4 mb-6">
-//           <button
-//             onClick={() => onSelectBot('gpt')}
-//             className="p-6 border rounded-lg hover:bg-blue-50 transition-colors"
-//           >
-//             <h3 className="font-bold text-lg mb-2">GPT-3.5</h3>
-//             <p className="text-sm text-gray-600 mb-2">OpenAI의 GPT-3.5 모델</p>
-//             <ul className="text-xs text-gray-500 list-disc pl-4">
-//               <li>빠른 응답 속도</li>
-//               <li>일관된 답변 품질</li>
-//               <li>다양한 주제 처리</li>
-//             </ul>
-//           </button>
-//           <button
-//             onClick={() => onSelectBot('claude')}
-//             className="p-6 border rounded-lg hover:bg-blue-50 transition-colors"
-//           >
-//             <h3 className="font-bold text-lg mb-2">Claude</h3>
-//             <p className="text-sm text-gray-600 mb-2">Anthropic의 Claude 모델</p>
-//             <ul className="text-xs text-gray-500 list-disc pl-4">
-//               <li>높은 분석 능력</li>
-//               <li>정확한 정보 제공</li>
-//               <li>상세한 설명 제공</li>
-//             </ul>
-//           </button>
-//           <button
-//             onClick={() => onSelectBot('mixtral')}
-//             className="p-6 border rounded-lg hover:bg-blue-50 transition-colors"
-//           >
-//             <h3 className="font-bold text-lg mb-2">Mixtral</h3>
-//             <p className="text-sm text-gray-600 mb-2">Mixtral-8x7B 모델</p>
-//             <ul className="text-xs text-gray-500 list-disc pl-4">
-//               <li>균형잡힌 성능</li>
-//               <li>다국어 지원</li>
-//               <li>코드 분석 특화</li>
-//             </ul>
-//           </button>
+//           {["GPT-3.5", "Claude", "Mixtral"].map((model) => (
+//             <button
+//               key={model}
+//               onClick={() => setSelectedAI(model)}
+//               className={`p-6 border rounded-lg transition-colors ${
+//                 selectedAI === model ? "bg-blue-300" : "hover:bg-blue-50"
+//               }`}
+//             >
+//               <h3 className="font-bold text-lg mb-2">{model}</h3>
+//               <p className="text-sm text-gray-600 mb-2">
+//                 {model === "GPT-3.5" 
+//                   ? "OpenAI의 GPT-3.5 모델" 
+//                   : model === "Claude" 
+//                   ? "Anthropic의 Claude 모델" 
+//                   : "Mixtral-8x7B 모델"}
+//               </p>
+//               <ul className="text-xs text-gray-500 list-disc pl-4">
+//                 {model === "GPT-3.5" && (
+//                   <>
+//                     <li>빠른 응답 속도</li>
+//                     <li>일관된 답변 품질</li>
+//                     <li>다양한 주제 처리</li>
+//                   </>
+//                 )}
+//                 {model === "Claude" && (
+//                   <>
+//                     <li>높은 분석 능력</li>
+//                     <li>정확한 정보 제공</li>
+//                     <li>상세한 설명 제공</li>
+//                   </>
+//                 )}
+//                 {model === "Mixtral" && (
+//                   <>
+//                     <li>균형잡힌 성능</li>
+//                     <li>다국어 지원</li>
+//                     <li>코드 분석 특화</li>
+//                   </>
+//                 )}
+//               </ul>
+//             </button>
+//           ))}
 //         </div>
-//         <div className="text-sm text-gray-600 mb-4">
-//           선택한 AI가 다른 AI들의 응답을 분석하여 최적의 답변을 제공합니다.
-//         </div>
-//         <div className="flex justify-end">
-//           <button
-//             onClick={onClose}
-//             className="px-4 py-2 text-gray-600 hover:text-gray-800"
-//           >
-//             취소
-//           </button>
-//         </div>
+//         <button
+//           onClick={handleConfirm}
+//           className={`absolute bottom-6 right-6 px-6 py-3 rounded-lg transition-colors ${
+//             selectedAI
+//               ? "bg-blue-500 text-white hover:bg-blue-600"
+//               : "bg-gray-300 text-gray-500 cursor-not-allowed"
+//           }`}
+//           disabled={!selectedAI}
+//         >
+//           확인
+//         </button>
 //       </div>
 //     </div>
 //   );
 // };
-
-// // ChatProvider 컴포넌트
 // export const ChatProvider = ({ children }) => {
 //   const [messages, setMessages] = useState({
 //     gpt: [],
 //     claude: [],
 //     mixtral: [],
+//     gemini: [],
+//     llama: [],
+//     palm: [],
+//     allama: [],
+//     deepseek: [],
+//     bloom: [],
+//     labs: [],
+//     optimal: []
 //   });
-//   const [selectedBot, setSelectedBot] = useState(null);
-//   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(true);
+  
+//   const [selectedModels, setSelectedModels] = useState(['gpt', 'claude', 'mixtral']);
 //   const [isLoading, setIsLoading] = useState(false);
 //   const [analysisResults, setAnalysisResults] = useState({});
+  
+//   // 모델 선택 모달용 상태
+//   const [selectedBot, setSelectedBot] = useState('gpt'); // 기본값: 'gpt'
+//   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
 //   const messagesEndRef = useRef(null);
+  
+//   // 응답 중인 모델 추적
+//   const [respondingBots, setRespondingBots] = useState({
+//     gpt: false,
+//     claude: false,
+//     mixtral: false,
+//     gemini: false,
+//     llama: false,
+//     palm: false,
+//     allama: false,
+//     deepseek: false,
+//     bloom: false,
+//     labs: false
+//   });
 
+//   // Redux에서 user 정보 가져오기
+//   const { user } = useSelector((state) => state.auth || { user: null });
+
+//   // 로그인한 사용자의 선호 모델 로드 (로그인하지 않은 경우 기본값 사용)
 //   useEffect(() => {
-//     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-//   }, [messages]);
+//     if (user?.settings?.preferredModels) {
+//       try {
+//         const preferredModels = JSON.parse(user.settings.preferredModels);
+//         if (Array.isArray(preferredModels) && preferredModels.length > 0) {
+//           setSelectedModels(preferredModels);
+//         }
+//       } catch (error) {
+//         console.error("Error parsing preferred models:", error);
+//       }
+//     }
+    
+//     // 기존 preferredModel 설정 호환성 유지
+//     if (user?.settings?.preferredModel) {
+//       const modelMapping = {
+//         'gpt': 'gpt',
+//         'claude': 'claude',
+//         'mixtral': 'mixtral',
+//         'default': 'gpt'
+//       };
+//       setSelectedBot(modelMapping[user.settings.preferredModel] || 'gpt');
+//     }
+//   }, [user]);
 
-//   const handleBotSelection = (botName) => {
-//     setSelectedBot(botName);
-//     setIsSelectionModalOpen(false);
-//   };
-
-//   const addMessage = (botName, text, isUser) => {
+//   const addMessage = (botName, text, isUser, requestId = null) => {
 //     setMessages((prev) => ({
 //       ...prev,
-//       [botName]: [...(prev[botName] || []), { text, isUser }],
+//       [botName]: [...(prev[botName] || []), { text, isUser, requestId, timestamp: Date.now() }],
 //     }));
 //   };
 
-//   const sendMessage = async (userMessage) => {
-//     if (!userMessage.trim() || !selectedBot) return;
+//   // 봇 선택 핸들러
+//   const handleBotSelection = async (botName) => {
+//     console.log('===== 모델 변경 =====');
+//     console.log('이전 모델:', selectedBot);
+//     console.log('새로 선택된 모델:', botName);
+//     console.log('===================');
+    
+//     setSelectedBot(botName);
+//     setIsSelectionModalOpen(false);
 
-//     setIsLoading(true);
+//     // 선택한 모델을 사용자 설정에 저장 (로그인한 경우에만 저장 시도)
 //     try {
-//       const response = await fetch(`http://localhost:8000/chat/${selectedBot}/`, {
-//         method: "POST",
+//       const token = localStorage.getItem("accessToken");
+//       if (!token) {
+//         console.log("No token found, skipping settings save");
+//         return;
+//       }
+
+//       const settingsData = {
+//         preferredModel: botName,
+//         language: (user && user.settings && user.settings.language) || 'ko'
+//       };
+
+//       const response = await fetch("http://localhost:8000/api/user/settings/", {
+//         method: "PUT",
 //         headers: {
 //           "Content-Type": "application/json",
+//           "Authorization": `Token ${token}`,
 //         },
-//         body: JSON.stringify({
-//           message: userMessage,
-//           compare: true
-//         }),
+//         body: JSON.stringify(settingsData),
 //       });
 
 //       if (!response.ok) {
-//         throw new Error(`HTTP error! status: ${response.status}`);
+//         throw new Error("모델 설정 저장에 실패했습니다.");
 //       }
-
-//       const data = await response.json();
-      
-//       // 사용자 메시지 추가
-//       Object.keys(messages).forEach((botName) => {
-//         addMessage(botName, userMessage, true);
-//       });
-
-//       // 각 AI의 응답 추가
-//       Object.entries(data.responses).forEach(([botName, response]) => {
-//         addMessage(botName, response, false);
-//       });
-
-//       // 분석 결과 저장
-//       setAnalysisResults((prev) => ({
-//         ...prev,
-//         [userMessage]: {
-//           bestResponse: data.best_response,
-//           analysis: data.analysis,
-//           analyzer: data.analyzer // 분석한 AI 정보 저장
-//         }
-//       }));
-
 //     } catch (error) {
-//       console.error("Error:", error);
-//       Object.keys(messages).forEach((botName) => {
-//         addMessage(botName, `오류가 발생했습니다: ${error.message}`, false);
-//       });
+//       console.error("Error saving model preference:", error);
 //     }
-//     setIsLoading(false);
 //   };
+
+
+// const sendMessage = async (userMessage) => {
+//   if (!userMessage.trim() || selectedModels.length === 0) return;
+
+//   setIsLoading(true);
+  
+//   // 각 요청마다 고유 ID 생성
+//   const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+//   // 응답 중인 상태로 설정
+//   const respondingModels = {};
+//   selectedModels.forEach(model => {
+//     respondingModels[model] = true;
+//   });
+//   setRespondingBots({...respondingBots, ...respondingModels});
+  
+//   try {
+//     const token = localStorage.getItem("accessToken");
+//     const headers = {
+//       "Content-Type": "application/json"
+//     };
+
+//     // 토큰이 있는 경우에만 Authorization 헤더 추가
+//     if (token) {
+//       headers["Authorization"] = `Token ${token}`;
+//     }
+    
+//     // 선택된 모델들에게만 사용자 메시지 추가 (requestId 포함)
+//     selectedModels.forEach((modelId) => {
+//       addMessage(modelId, userMessage, true, requestId);
+//     });
+    
+//     // optimal 칼럼에도 사용자 메시지 추가
+//     addMessage('optimal', userMessage, true, requestId);
+
+//     // 분석을 위한 모델 선택 (선호 모델 또는 첫 번째 선택된 모델)
+//     const analyzerModel = selectedModels.includes(selectedBot) 
+//       ? selectedBot 
+//       : selectedModels[0] || 'gpt';
+    
+//     console.log('===== 분석 모델 =====');
+//     console.log('선택된 모델들:', selectedModels);
+//     console.log('분석 수행 모델:', analyzerModel);
+//     console.log('요청 ID:', requestId);
+//     console.log('====================');
+    
+//     // 응답 스트림 가져오기
+//     const response = await fetch(`http://localhost:8000/chat/${analyzerModel}/`, {
+//       method: "POST",
+//       headers,
+//       body: JSON.stringify({
+//         message: userMessage,
+//         compare: true, // 비교 기능 활성화
+//         selectedModels: selectedModels, // 선택된 모델 전달
+//         language: (user && user.settings && user.settings.language) || 'ko', // 기본값: 'ko'
+//         requestId: requestId // 요청 ID 전달
+//       }),
+//     });
+
+//     if (!response.ok) {
+//       throw new Error(`HTTP error! status: ${response.status}`);
+//     }
+
+//     // 스트림 리더 생성
+//     const reader = response.body.getReader();
+//     const decoder = new TextDecoder();
+    
+//     // 임시 분석 결과 저장
+//     let currentAnalysis = null;
+
+//     // 스트림 처리
+//     while (true) {
+//       const { done, value } = await reader.read();
+      
+//       if (done) {
+//         console.log('Stream complete');
+//         break;
+//       }
+      
+//       const chunk = decoder.decode(value, { stream: true });
+//       const lines = chunk.split('\n').filter(line => line.trim() !== '');
+      
+//       for (const line of lines) {
+//         try {
+//           const data = JSON.parse(line);
+//           console.log('Received data:', data);
+          
+//           if (data.type === 'bot_response' && selectedModels.includes(data.botId)) {
+//             // 각 모델의 응답을 받는 즉시 표시
+//             addMessage(data.botId, data.response, false, data.requestId || requestId);
+            
+//             // 모델 응답 완료 상태 업데이트
+//             setRespondingBots(prev => ({
+//               ...prev,
+//               [data.botId]: false
+//             }));
+//           } 
+//           else if (data.type === 'bot_error' && selectedModels.includes(data.botId)) {
+//             // 에러 메시지 추가
+//             addMessage(data.botId, `오류가 발생했습니다: ${data.error}`, false, data.requestId || requestId);
+            
+//             // 오류 발생한 모델 응답 완료 처리
+//             setRespondingBots(prev => ({
+//               ...prev,
+//               [data.botId]: false
+//             }));
+//           }
+//           else if (data.type === 'analysis') {
+//             // 분석 결과 저장
+//             currentAnalysis = {
+//               botName: data.preferredModel,
+//               bestResponse: data.best_response,
+//               analysis: data.analysis,
+//               reasoning: data.reasoning,
+//               timestamp: Date.now(),
+//               requestId: data.requestId || requestId
+//             };
+            
+//             // 중요: 매번 새 분석 결과 생성을 위해, 타임스탬프를 키에 포함
+//             // 이렇게 하면 동일한 질문에 대해서도 매번 다른 키로 저장됨
+//             const analysisKey = `${userMessage}_${Date.now()}`;
+            
+//             // 전체 분석 결과 업데이트
+//             setAnalysisResults(prev => {
+//               // 이전 결과는 그대로 유지하고 새 결과만 추가
+//               return {
+//                 ...prev,
+//                 [analysisKey]: currentAnalysis
+//               };
+//             });
+//           }
+//         } catch (e) {
+//           console.error('Error parsing stream chunk:', e, line);
+//         }
+//       }
+//     }
+//   } catch (error) {
+//     console.error("Message sending error:", error);
+//     // 에러 메시지를 선택된 모든 봇에 표시
+//     selectedModels.forEach((modelId) => {
+//       addMessage(modelId, `오류가 발생했습니다: ${error.message}`, false, requestId);
+//     });
+    
+//     // 모든 선택된 모델 응답 완료 상태로 설정
+//     const completedModels = {};
+//     selectedModels.forEach(model => {
+//       completedModels[model] = false;
+//     });
+//     setRespondingBots({...respondingBots, ...completedModels});
+//   }
+  
+//   setIsLoading(false);
+// };
+
+//   // 모델 선택 상태 변경 시 사용자 설정 저장
+//   useEffect(() => {
+//     const saveUserPreferences = async () => {
+//       try {
+//         const token = localStorage.getItem("accessToken");
+//         if (!token) {
+//           console.log("No token found, skipping settings save");
+//           return;
+//         }
+
+//         const settingsData = {
+//           preferredModels: JSON.stringify(selectedModels),
+//           language: (user && user.settings && user.settings.language) || 'ko'
+//         };
+
+//         const response = await fetch("http://localhost:8000/api/user/settings/", {
+//           method: "PUT",
+//           headers: {
+//             "Content-Type": "application/json",
+//             "Authorization": `Token ${token}`,
+//           },
+//           body: JSON.stringify(settingsData),
+//         });
+
+//         if (!response.ok) {
+//           throw new Error("모델 설정 저장에 실패했습니다.");
+//         }
+//       } catch (error) {
+//         console.error("Error saving model preferences:", error);
+//       }
+//     };
+
+//     // 사용자가 로그인한 경우에만 설정 저장
+//     if (user) {
+//       saveUserPreferences();
+//     }
+//   }, [selectedModels, user]);
 
 //   return (
 //     <ChatContext.Provider
@@ -154,24 +405,32 @@
 //         messages,
 //         sendMessage,
 //         isLoading,
-//         messagesEndRef,
-//         selectedBot,
 //         analysisResults,
+//         selectedModels,
+//         setSelectedModels,
+//         respondingBots,
+//         isLoggedIn: !!user,
+//         messagesEndRef,
+//         // 기존 모델 선택 모달 관련 함수와 상태 추가
+//         selectedBot,
+//         setSelectedBot,
 //         isSelectionModalOpen,
 //         setIsSelectionModalOpen,
 //         handleBotSelection
 //       }}
 //     >
 //       {children}
+      
+//       {/* 로그인 여부와 상관없이 모델 선택 모달 표시 */}
 //       <SelectBotModal
 //         isOpen={isSelectionModalOpen}
-//         onClose={() => selectedBot ? setIsSelectionModalOpen(false) : null}
+//         onClose={() => setIsSelectionModalOpen(false)}
 //         onSelectBot={handleBotSelection}
+//         currentModel={selectedBot}
 //       />
 //     </ChatContext.Provider>
 //   );
 // };
-
 // // Custom Hook
 // export const useChat = () => {
 //   const context = useContext(ChatContext);
@@ -181,67 +440,9 @@
 //   return context;
 // };
 
-// // ChatInterface 컴포넌트
-// // AnalysisModal 컴포넌트
-// const AnalysisModal = ({ isOpen, onClose, result }) => {
-//   if (!isOpen || !result) return null;
 
-//   return (
-//     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-//       <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-//         <div className="flex justify-between items-center mb-4">
-//           <h2 className="text-xl font-bold">분석 결과</h2>
-//           <button
-//             onClick={onClose}
-//             className="text-gray-500 hover:text-gray-700"
-//           >
-//             <span className="text-2xl">×</span>
-//           </button>
-//         </div>
 
-//         <div className="space-y-6">
-//           {/* 최적의 답변 */}
-//           <div>
-//             <h3 className="font-medium text-lg mb-2">최적의 답변:</h3>
-//             <div className="p-4 bg-blue-50 rounded-lg">
-//               {result.bestResponse}
-//             </div>
-//           </div>
 
-//           {/* AI별 분석 */}
-//           <div>
-//             <h3 className="font-medium text-lg mb-2">AI 별 분석:</h3>
-//             <div className="grid grid-cols-3 gap-4">
-//               {Object.entries(result.analysis).map(([aiName, aiAnalysis]) => (
-//                 <div key={aiName} className="p-4 bg-gray-50 rounded-lg">
-//                   <h4 className="font-medium mb-2">{aiName.toUpperCase()}</h4>
-//                   <div className="space-y-2">
-//                     <div className="text-green-600">
-//                       <span className="font-medium">장점:</span> {aiAnalysis.장점}
-//                     </div>
-//                     <div className="text-red-600">
-//                       <span className="font-medium">단점:</span> {aiAnalysis.단점}
-//                     </div>
-//                   </div>
-//                 </div>
-//               ))}
-//             </div>
-//           </div>
-
-//           {/* 분석 근거 */}
-//           <div>
-//             <h3 className="font-medium text-lg mb-2">분석 근거:</h3>
-//             <div className="p-4 bg-gray-50 rounded-lg">
-//               {result.reasoning}
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// // ChatInterface 컴포넌트 수정된 부분
 // export const ChatInterface = () => {
 //   const {
 //     messages,
@@ -249,12 +450,14 @@
 //     isLoading,
 //     messagesEndRef,
 //     selectedBot,
-//     setSelectedBot,
-//     analysisResults
+//     analysisResults,
+//     setIsSelectionModalOpen,
+//     isLoggedIn,
+//     respondingBots // 응답 중인 모델 상태 추가
 //   } = useChat();
 //   const [userInput, setUserInput] = useState("");
 //   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
-//   const [selectedAnalysis, setSelectedAnalysis] = useState(null);
+//   const [currentAnalysisResult, setCurrentAnalysisResult] = useState(null);
 
 //   const handleSubmit = (e) => {
 //     e.preventDefault();
@@ -264,14 +467,22 @@
 //     }
 //   };
 
-//   const handleShowAnalysis = (result) => {
-//     setSelectedAnalysis(result);
-//     setIsAnalysisModalOpen(true);
+//   const handleShowAnalysis = (messageIndex, botMessages) => {
+//     const userMessage = botMessages[messageIndex - 1]?.text;
+//     if (userMessage && analysisResults[userMessage]) {
+//       setCurrentAnalysisResult(analysisResults[userMessage]);
+//       setIsAnalysisModalOpen(true);
+//     }
+//   };
+
+//   // 로그인 여부와 상관없이 설정 모달을 열도록 수정
+//   const handleSettingsClick = () => {
+//     setIsSelectionModalOpen(true);
 //   };
 
 //   return (
 //     <div className="flex flex-col h-screen max-w-7xl mx-auto p-4">
-//       {/* AI 선택 영역 */}
+//       {/* 설정 영역 - 모든 사용자에게 표시 */}
 //       <div className="mb-6 bg-white p-4 rounded-lg shadow-sm">
 //         <div className="flex items-center gap-4">
 //           <div>
@@ -280,31 +491,39 @@
 //             </label>
 //             <select
 //               id="bot-select"
-//               value={selectedBot}
-//               onChange={(e) => setSelectedBot(e.target.value)}
+//               value={selectedBot || ''}
+//               onChange={handleSettingsClick}
 //               className="p-2 border rounded shadow-sm"
 //             >
+//               <option value="">AI 모델을 선택하세요</option>
 //               <option value="gpt">GPT-3.5</option>
 //               <option value="claude">Claude</option>
 //               <option value="mixtral">Mixtral</option>
 //             </select>
 //           </div>
 //           <div className="text-sm text-gray-600">
+//             {/* 로그인 여부와 무관하게 동일한 설명을 표시 */}
 //             선택한 AI가 다른 AI들의 응답을 분석하여 최적의 답변을 제공합니다.
 //           </div>
 //         </div>
 //       </div>
 
 //       {/* 채팅 영역 */}
-//       <div className="grid grid-cols-3 gap-4 flex-1 overflow-y-auto">
+//       <div className={`grid ${isLoggedIn ? 'grid-cols-3' : 'grid-cols-1'} gap-4 flex-1 overflow-y-auto`}>
 //         {Object.entries(messages).map(([botName, botMessages]) => (
 //           <div key={botName} className="border rounded-lg p-4 overflow-y-auto">
-//             <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white py-2">
+//             <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white py-2 flex items-center">
 //               {botName.toUpperCase()}
+//               {/* 응답 중인 상태 표시 */}
+//               {respondingBots[botName] && (
+//                 <span className="ml-2 inline-block text-sm text-blue-500 animate-pulse">
+//                   응답 중...
+//                 </span>
+//               )}
 //             </h2>
 //             <div className="space-y-4">
 //               {botMessages.map((msg, idx) => (
-//                 <div key={idx}>
+//                 <div key={idx} className="mb-4">
 //                   <div
 //                     className={`p-3 rounded-lg ${
 //                       msg.isUser 
@@ -314,204 +533,795 @@
 //                   >
 //                     <p>{msg.text}</p>
 //                   </div>
-//                   {!msg.isUser && analysisResults[botMessages[idx-1]?.text] && (
+//                   {/* 로그인 여부와 상관없이 분석 버튼 표시 (사용자 메시지가 아닌 경우에만) */}
+//                   {!msg.isUser && (
 //                     <button
-//                       onClick={() => handleShowAnalysis(analysisResults[botMessages[idx-1].text])}
-//                       className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+//                       onClick={() => handleShowAnalysis(idx, botMessages)}
+//                       className="text-sm text-blue-500 mt-2"
 //                     >
-//                       <span>📊</span> 최적의 답변 보기
+//                       분석 보기
 //                     </button>
 //                   )}
 //                 </div>
 //               ))}
+              
+//               {/* 응답 중인 경우 표시할 로딩 표시 */}
+//               {respondingBots[botName] && botMessages.length > 0 && (
+//                 <div className="p-3 rounded-lg bg-gray-50 flex items-center">
+//                   <div className="dot-typing"></div>
+//                 </div>
+//               )}
 //             </div>
 //           </div>
 //         ))}
 //       </div>
 
-//       {/* 입력 폼 */}
-//       <form onSubmit={handleSubmit} className="mt-4">
-//         <div className="flex gap-2">
-//           <input
-//             type="text"
-//             value={userInput}
-//             onChange={(e) => setUserInput(e.target.value)}
-//             className="flex-1 p-2 border rounded shadow-sm"
-//             placeholder="메시지를 입력하세요..."
-//             disabled={isLoading}
-//           />
-//           <button
-//             type="submit"
-//             className="px-4 py-2 bg-blue-500 text-white rounded shadow hover:bg-blue-600 transition-colors disabled:bg-blue-300"
-//             disabled={isLoading}
-//           >
-//             {isLoading ? "처리 중..." : "전송"}
-//           </button>
-//         </div>
+//       {/* 메시지 입력 영역 */}
+//       <form onSubmit={handleSubmit} className="flex gap-4 mt-4">
+//         <input
+//           type="text"
+//           value={userInput}
+//           onChange={(e) => setUserInput(e.target.value)}
+//           className="flex-1 p-2 border rounded"
+//           placeholder="메시지를 입력하세요..."
+//         />
+//         <button
+//           type="submit"
+//           className="px-4 py-2 bg-blue-500 text-white rounded"
+//           disabled={isLoading}
+//         >
+//           {isLoading ? "전송 중..." : "보내기"}
+//         </button>
 //       </form>
 
-//       <div ref={messagesEndRef} />
+//       {/* 분석 모달 */}
+//       {isAnalysisModalOpen && (
+//         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+//           <div className="bg-white rounded-lg p-6 w-full max-w-lg">
+//             <h2 className="text-xl font-bold mb-4">분석 결과</h2>
+//             {currentAnalysisResult && (
+//               <div>
+//                 <p>선택한 AI: {currentAnalysisResult.botName}</p>
+//                 <p>최고의 응답: {currentAnalysisResult.bestResponse}</p>
+//                 <p>분석: {currentAnalysisResult.analysis}</p>
+//                 <p>이유: {currentAnalysisResult.reasoning}</p>
+//               </div>
+//             )}
+//             <div className="flex justify-end mt-4">
+//               <button
+//                 onClick={() => setIsAnalysisModalOpen(false)}
+//                 className="px-4 py-2 bg-blue-500 text-white rounded"
+//               >
+//                 닫기
+//               </button>
+//             </div>
+//           </div>
+//         </div>
+//       )}
 
-//       {/* 분석 결과 모달 */}
-//       <AnalysisModal
-//         isOpen={isAnalysisModalOpen}
-//         onClose={() => setIsAnalysisModalOpen(false)}
-//         result={selectedAnalysis}
-//       />
+//       {/* 타이핑 애니메이션을 위한 CSS */}
+//       <style jsx>{`
+//         .dot-typing {
+//           position: relative;
+//           left: -9999px;
+//           width: 6px;
+//           height: 6px;
+//           border-radius: 5px;
+//           background-color: #3B82F6;
+//           color: #3B82F6;
+//           box-shadow: 9999px 0 0 0 #3B82F6;
+//           animation: dot-typing 1.5s infinite linear;
+//         }
+
+//         @keyframes dot-typing {
+//           0% {
+//             box-shadow: 9999px 0 0 0 #3B82F6;
+//           }
+//           25% {
+//             box-shadow: 9999px 0 0 0 #3B82F6, 9984px 0 0 0 #3B82F6;
+//           }
+//           50% {
+//             box-shadow: 9999px 0 0 0 #3B82F6, 9984px 0 0 0 #3B82F6, 9969px 0 0 0 #3B82F6;
+//           }
+//         }
+//       `}</style>
+
+//       <div ref={messagesEndRef} />
 //     </div>
 //   );
-// };// ChatInterface 컴포넌트 수정
+// };
 
-// Chat.js
+// export default ChatInterface;
 import React, { createContext, useState, useContext, useRef, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import { clusterResponses, extractResponseFeatures } from "../utils/similarityAnalysis";
 
 // Context 생성
 const ChatContext = createContext(null);
 
 // 봇 선택 모달 컴포넌트
-const SelectBotModal = ({ isOpen, onClose, onSelectBot }) => {
+const SelectBotModal = ({ isOpen, onClose, onSelectBot, currentModel }) => {
+  const [selectedAI, setSelectedAI] = useState(null);
+
+  useEffect(() => {
+    // 현재 모델에 따라 초기 선택 설정
+    const reverseMapping = {
+      'gpt': 'GPT-3.5',
+      'claude': 'Claude', 
+      'mixtral': 'Mixtral'
+    };
+    setSelectedAI(reverseMapping[currentModel]);
+  }, [currentModel]);
+
+  const handleConfirm = () => {
+    if (selectedAI) {
+      const botMapping = {
+        'GPT-3.5': 'gpt',
+        'Claude': 'claude',
+        'Mixtral': 'mixtral'
+      };
+      onSelectBot(botMapping[selectedAI]);
+      onClose();
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
-        <h2 className="text-xl font-bold mb-4">분석을 수행할 AI 선택</h2>
+      <div className="bg-white rounded-lg p-6 w-full max-w-2xl shadow-lg relative pb-20">
+        <h2 className="text-xl font-bold mb-4">최적화 모델 선택</h2>
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <button
-            onClick={() => onSelectBot('gpt')}
-            className="p-6 border rounded-lg hover:bg-blue-50 transition-colors"
-          >
-            <h3 className="font-bold text-lg mb-2">GPT-3.5</h3>
-            <p className="text-sm text-gray-600 mb-2">OpenAI의 GPT-3.5 모델</p>
-            <ul className="text-xs text-gray-500 list-disc pl-4">
-              <li>빠른 응답 속도</li>
-              <li>일관된 답변 품질</li>
-              <li>다양한 주제 처리</li>
-            </ul>
-          </button>
-          <button
-            onClick={() => onSelectBot('claude')}
-            className="p-6 border rounded-lg hover:bg-blue-50 transition-colors"
-          >
-            <h3 className="font-bold text-lg mb-2">Claude</h3>
-            <p className="text-sm text-gray-600 mb-2">Anthropic의 Claude 모델</p>
-            <ul className="text-xs text-gray-500 list-disc pl-4">
-              <li>높은 분석 능력</li>
-              <li>정확한 정보 제공</li>
-              <li>상세한 설명 제공</li>
-            </ul>
-          </button>
-          <button
-            onClick={() => onSelectBot('mixtral')}
-            className="p-6 border rounded-lg hover:bg-blue-50 transition-colors"
-          >
-            <h3 className="font-bold text-lg mb-2">Mixtral</h3>
-            <p className="text-sm text-gray-600 mb-2">Mixtral-8x7B 모델</p>
-            <ul className="text-xs text-gray-500 list-disc pl-4">
-              <li>균형잡힌 성능</li>
-              <li>다국어 지원</li>
-              <li>코드 분석 특화</li>
-            </ul>
-          </button>
+          {["GPT-3.5", "Claude", "Mixtral"].map((model) => (
+            <button
+              key={model}
+              onClick={() => setSelectedAI(model)}
+              className={`p-6 border rounded-lg transition-colors ${
+                selectedAI === model ? "bg-blue-300" : "hover:bg-blue-50"
+              }`}
+            >
+              <h3 className="font-bold text-lg mb-2">{model}</h3>
+              <p className="text-sm text-gray-600 mb-2">
+                {model === "GPT-3.5" 
+                  ? "OpenAI의 GPT-3.5 모델" 
+                  : model === "Claude" 
+                  ? "Anthropic의 Claude 모델" 
+                  : "Mixtral-8x7B 모델"}
+              </p>
+              <ul className="text-xs text-gray-500 list-disc pl-4">
+                {model === "GPT-3.5" && (
+                  <>
+                    <li>빠른 응답 속도</li>
+                    <li>일관된 답변 품질</li>
+                    <li>다양한 주제 처리</li>
+                  </>
+                )}
+                {model === "Claude" && (
+                  <>
+                    <li>높은 분석 능력</li>
+                    <li>정확한 정보 제공</li>
+                    <li>상세한 설명 제공</li>
+                  </>
+                )}
+                {model === "Mixtral" && (
+                  <>
+                    <li>균형잡힌 성능</li>
+                    <li>다국어 지원</li>
+                    <li>코드 분석 특화</li>
+                  </>
+                )}
+              </ul>
+            </button>
+          ))}
         </div>
-        <div className="text-sm text-gray-600 mb-4">
-          선택한 AI가 다른 AI들의 응답을 분석하여 최적의 답변을 제공합니다.
-        </div>
-        <div className="flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800"
-          >
-            취소
-          </button>
-        </div>
+        <button
+          onClick={handleConfirm}
+          className={`absolute bottom-6 right-6 px-6 py-3 rounded-lg transition-colors ${
+            selectedAI
+              ? "bg-blue-500 text-white hover:bg-blue-600"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+          }`}
+          disabled={!selectedAI}
+        >
+          확인
+        </button>
       </div>
     </div>
   );
 };
 
-// ChatProvider 컴포넌트
 export const ChatProvider = ({ children }) => {
   const [messages, setMessages] = useState({
     gpt: [],
     claude: [],
     mixtral: [],
+    gemini: [],
+    llama: [],
+    palm: [],
+    allama: [],
+    deepseek: [],
+    bloom: [],
+    labs: [],
+    optimal: []
   });
-  const [selectedBot, setSelectedBot] = useState(null);
-  const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(true);
+  
+  const [selectedModels, setSelectedModels] = useState(['gpt', 'claude', 'mixtral']);
   const [isLoading, setIsLoading] = useState(false);
   const [analysisResults, setAnalysisResults] = useState({});
+  
+  // 유사도 분석 결과를 저장할 새로운 상태 추가
+  const [similarityResults, setSimilarityResults] = useState({});
+  
+  // 모델 선택 모달용 상태
+  const [selectedBot, setSelectedBot] = useState('gpt'); // 기본값: 'gpt'
+  const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
   const messagesEndRef = useRef(null);
+  
+  // 응답 중인 모델 추적
+  const [respondingBots, setRespondingBots] = useState({
+    gpt: false,
+    claude: false,
+    mixtral: false,
+    gemini: false,
+    llama: false,
+    palm: false,
+    allama: false,
+    deepseek: false,
+    bloom: false,
+    labs: false
+  });
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [imageAnalysisResults, setImageAnalysisResults] = useState({});
+  // Redux에서 user 정보 가져오기
+  const { user } = useSelector((state) => state.auth || { user: null });
 
+  // 디버깅을 위한 스트림 데이터 로깅
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+      const result = originalFetch.apply(this, args);
+      if (args[0] && typeof args[0] === 'string' && args[0].includes('/chat/')) {
+        // 채팅 요청인 경우 응답 스트림 모니터링
+        result.then(response => {
+          const reader = response.clone().body.getReader();
+          const decoder = new TextDecoder();
+          
+          async function processStream() {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              
+              const chunk = decoder.decode(value, { stream: true });
+              console.log('Raw stream chunk:', chunk);
+            }
+          }
+          
+          processStream().catch(console.error);
+        }).catch(console.error);
+      }
+      return result;
+    };
+  }, []);
 
-  const handleBotSelection = (botName) => {
-    setSelectedBot(botName);
-    setIsSelectionModalOpen(false);
-  };
+  // 로그인한 사용자의 선호 모델 로드 (로그인하지 않은 경우 기본값 사용)
+  useEffect(() => {
+    if (user?.settings?.preferredModels) {
+      try {
+        const preferredModels = JSON.parse(user.settings.preferredModels);
+        if (Array.isArray(preferredModels) && preferredModels.length > 0) {
+          setSelectedModels(preferredModels);
+        }
+      } catch (error) {
+        console.error("Error parsing preferred models:", error);
+      }
+    }
+    
+    // 기존 preferredModel 설정 호환성 유지
+    if (user?.settings?.preferredModel) {
+      const modelMapping = {
+        'gpt': 'gpt',
+        'claude': 'claude',
+        'mixtral': 'mixtral',
+        'default': 'gpt'
+      };
+      setSelectedBot(modelMapping[user.settings.preferredModel] || 'gpt');
+    }
+  }, [user]);
 
-  const addMessage = (botName, text, isUser) => {
+  const addMessage = (botName, text, isUser, requestId = null) => {
     setMessages((prev) => ({
       ...prev,
-      [botName]: [...(prev[botName] || []), { text, isUser }],
+      [botName]: [...(prev[botName] || []), { text, isUser, requestId, timestamp: Date.now() }],
     }));
   };
 
-// ChatContext.js 의 sendMessage 함수 내부
-const sendMessage = async (userMessage) => {
-  if (!userMessage.trim() || !selectedBot) return;
+  // 디버깅용 로깅
+  useEffect(() => {
+    console.log('Current similarity results:', similarityResults);
+  }, [similarityResults]);
 
-  setIsLoading(true);
-  try {
-    const response = await fetch(`http://localhost:8000/chat/${selectedBot}/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        message: userMessage,
-        compare: true
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log('API Response:', data); // 데이터 구조 확인을 위한 로깅
+  // 봇 선택 핸들러
+  const handleBotSelection = async (botName) => {
+    console.log('===== 모델 변경 =====');
+    console.log('이전 모델:', selectedBot);
+    console.log('새로 선택된 모델:', botName);
+    console.log('===================');
     
-    // 사용자 메시지 추가
-    Object.keys(messages).forEach((botName) => {
-      addMessage(botName, userMessage, true);
-    });
+    setSelectedBot(botName);
+    setIsSelectionModalOpen(false);
 
-    // 각 AI의 응답 추가
-    Object.entries(data.responses).forEach(([botName, response]) => {
-      addMessage(botName, response, false);
-    });
-
-    // 분석 결과 저장
-    setAnalysisResults((prev) => ({
-      ...prev,
-      [userMessage]: {
-        botName: data.bot_name,
-        bestResponse: data.best_response,
-        analysis: data.analysis, // 직접 analysis 객체 사용
-        reasoning: data.reasoning
+    // 선택한 모델을 사용자 설정에 저장 (로그인한 경우에만 저장 시도)
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        console.log("No token found, skipping settings save");
+        return;
       }
-    }));
 
-  } catch (error) {
-    console.error("Error:", error);
-    Object.keys(messages).forEach((botName) => {
-      addMessage(botName, `오류가 발생했습니다: ${error.message}`, false);
+      const settingsData = {
+        preferredModel: botName,
+        language: (user && user.settings && user.settings.language) || 'ko'
+      };
+
+      const response = await fetch("http://localhost:8000/api/user/settings/", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Token ${token}`,
+        },
+        body: JSON.stringify(settingsData),
+      });
+
+      if (!response.ok) {
+        throw new Error("모델 설정 저장에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("Error saving model preference:", error);
+    }
+  };
+
+// 프론트엔드에서 유사도 분석 수행
+useEffect(() => {
+  // 모든 모델에 응답이 도착했는지 확인
+  const allModelsHaveResponses = () => {
+    if (!selectedModels.length) return false;
+
+    // 사용자 메시지들만 필터링
+    const userMessages = messages.optimal?.filter(msg => msg.isUser) || [];
+
+    userMessages.forEach(userMsg => {
+      // 각 모델이 이 메시지에 답했는지 확인
+      const allHaveResponses = selectedModels.every(modelId => {
+        return (messages[modelId] || []).some(
+          msg => !msg.isUser && msg.requestId === userMsg.requestId
+        );
+      });
+
+      // 아직 저장된 적 없는 메시지의 경우에만 분석 실행
+      if (allHaveResponses && !similarityResults[userMsg.requestId]) {
+        // 모델별 응답 수집
+        const responses = {};
+        selectedModels.forEach(modelId => {
+          const aiMsg = (messages[modelId] || []).find(
+            msg => !msg.isUser && msg.requestId === userMsg.requestId
+          );
+          if (aiMsg) responses[modelId] = aiMsg.text;
+        });
+
+        // 2개 이상 응답이 있으면 클러스터링
+        if (Object.keys(responses).length >= 2) {
+          const result = clusterResponses(responses, 0.01);
+
+          // 응답 특성 추출
+          const responseFeatures = {};
+          Object.entries(responses).forEach(([modelId, text]) => {
+               const features = extractResponseFeatures(text);
+               features.length = text.length;           // ← 여기서 글자 수 할당
+               responseFeatures[modelId] = features;
+            });
+
+          // 최종 유사도 분석 결과 구성
+          const analysisResult = {
+            ...result,
+            responseFeatures,
+            timestamp: Date.now(),
+            requestId: userMsg.requestId,
+            userMessage: userMsg.text
+          };
+
+          // requestId 를 key 로 해서 저장
+          setSimilarityResults(prev => ({
+            ...prev,
+            [userMsg.requestId]: analysisResult
+          }));
+        }
+      }
     });
-  }
-  setIsLoading(false);
-};
+  };
+
+  allModelsHaveResponses();
+}, [messages, selectedModels]);
+
+  const sendMessage = async (userMessage) => {
+    if (!userMessage.trim() || selectedModels.length === 0) return;
+
+    setIsLoading(true);
+    
+    // 각 요청마다 고유 ID 생성
+    const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // 응답 중인 상태로 설정
+    const respondingModels = {};
+    selectedModels.forEach(model => {
+      respondingModels[model] = true;
+    });
+    setRespondingBots({...respondingBots, ...respondingModels});
+    
+    try {
+      const token = localStorage.getItem("accessToken");
+      const headers = {
+        "Content-Type": "application/json"
+      };
+
+      // 토큰이 있는 경우에만 Authorization 헤더 추가
+      if (token) {
+        headers["Authorization"] = `Token ${token}`;
+      }
+      
+      // 선택된 모델들에게만 사용자 메시지 추가 (requestId 포함)
+      selectedModels.forEach((modelId) => {
+        addMessage(modelId, userMessage, true, requestId);
+      });
+      
+      // optimal 칼럼에도 사용자 메시지 추가
+      addMessage('optimal', userMessage, true, requestId);
+
+      // 분석을 위한 모델 선택 (선호 모델 또는 첫 번째 선택된 모델)
+      const analyzerModel = selectedModels.includes(selectedBot) 
+        ? selectedBot 
+        : selectedModels[0] || 'gpt';
+      
+      console.log('===== 분석 모델 =====');
+      console.log('선택된 모델들:', selectedModels);
+      console.log('분석 수행 모델:', analyzerModel);
+      console.log('요청 ID:', requestId);
+      console.log('====================');
+      
+      // 응답 스트림 가져오기
+      const response = await fetch(`http://localhost:8000/chat/${analyzerModel}/`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          message: userMessage,
+          compare: true, // 비교 기능 활성화
+          selectedModels: selectedModels, // 선택된 모델 전달
+          language: (user && user.settings && user.settings.language) || 'ko', // 기본값: 'ko'
+          requestId: requestId // 요청 ID 전달
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // 스트림 리더 생성
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      
+      // 임시 분석 결과 저장
+      let currentAnalysis = null;
+
+      // 스트림 처리
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          console.log('Stream complete');
+          break;
+        }
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+        
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+            console.log('Received data:', data);
+            
+            if (data.type === 'bot_response' && selectedModels.includes(data.botId)) {
+              // 각 모델의 응답을 받는 즉시 표시
+              addMessage(data.botId, data.response, false, data.requestId || requestId);
+              
+              // 모델 응답 완료 상태 업데이트
+              setRespondingBots(prev => ({
+                ...prev,
+                [data.botId]: false
+              }));
+            } 
+            else if (data.type === 'bot_error' && selectedModels.includes(data.botId)) {
+              // 에러 메시지 추가
+              addMessage(data.botId, `오류가 발생했습니다: ${data.error}`, false, data.requestId || requestId);
+              
+              // 오류 발생한 모델 응답 완료 처리
+              setRespondingBots(prev => ({
+                ...prev,
+                [data.botId]: false
+              }));
+            }
+            // 유사도 분석 결과 처리 추가
+            else if (data.type === 'similarity_analysis') {
+              console.log('Received similarity analysis:', data.result);
+            
+              const similarityData = {
+                requestId,
+                timestamp: data.timestamp,
+                userMessage: data.userMessage || userMessage,
+                ...data.result
+              };
+              
+              // similarityResults 상태 업데이트
+              setSimilarityResults(prev => ({
+                        ...prev,
+                         [requestId]: similarityData
+                       }));
+                      }
+            else if (data.type === 'analysis') {
+              // 분석 결과 저장
+              currentAnalysis = {
+                botName: data.preferredModel,
+                bestResponse: data.best_response,
+                analysis: data.analysis,
+                reasoning: data.reasoning,
+                timestamp: Date.now(),
+                requestId: data.requestId || requestId,
+                userMessage: data.userMessage || userMessage
+              };
+              
+              // 중요: 매번 새 분석 결과 생성을 위해, 타임스탬프를 키에 포함
+              // 이렇게 하면 동일한 질문에 대해서도 매번 다른 키로 저장됨
+              const analysisKey = `${userMessage}_${Date.now()}`;
+              
+              // 전체 분석 결과 업데이트
+              setAnalysisResults(prev => {
+                // 이전 결과는 그대로 유지하고 새 결과만 추가
+                return {
+                  ...prev,
+                  [analysisKey]: currentAnalysis
+                };
+              });
+            }
+          } catch (e) {
+            console.error('Error parsing stream chunk:', e, line);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Message sending error:", error);
+      // 에러 메시지를 선택된 모든 봇에 표시
+      selectedModels.forEach((modelId) => {
+        addMessage(modelId, `오류가 발생했습니다: ${error.message}`, false, requestId);
+      });
+      
+      // 모든 선택된 모델 응답 완료 상태로 설정
+      const completedModels = {};
+      selectedModels.forEach(model => {
+        completedModels[model] = false;
+      });
+      setRespondingBots({...respondingBots, ...completedModels});
+    }
+    
+    setIsLoading(false);
+  };
+  const processImageUpload = async (imageFile, analysisMode) => {
+    if (!imageFile || selectedModels.length === 0) return;
+    
+    setIsLoading(true);
+    setIsProcessingImage(true);
+    
+    // 각 요청마다 고유 ID 생성
+    const requestId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // 이미지 분석 모드에 따른 프롬프트 생성
+    let promptText = '';
+    switch (analysisMode) {
+      case 'describe':
+        promptText = '이 이미지를 자세히 설명해주세요. 이미지에서 보이는 모든 중요한 요소를 포함하세요.';
+        break;
+      case 'ocr':
+        promptText = '이 이미지에서 모든 텍스트를 추출하고 원본 레이아웃을 최대한 유지하여 표시해주세요.';
+        break;
+      case 'objects':
+        promptText = '이 이미지에서 인식 가능한 모든 객체를 나열하고 각각에 대해 간략히 설명해주세요.';
+        break;
+      default:
+        promptText = '이 이미지를 분석해주세요.';
+    }
+    
+    // 이미지 파일 처리를 위한 FormData 생성
+    const formData = new FormData();
+    formData.append('image', imageFile);
+    formData.append('prompt', promptText);
+    formData.append('analysisMode', analysisMode);
+    formData.append('requestId', requestId);
+    formData.append('selectedModels', JSON.stringify(selectedModels));
+    formData.append('language', (user && user.settings && user.settings.language) || 'ko');
+    
+    // 각 모델과 optimal 컬럼에 사용자 메시지 추가
+    const userImageMessage = `[이미지 업로드됨] - ${analysisMode === 'describe' ? '이미지 설명' : analysisMode === 'ocr' ? '텍스트 추출' : '객체 인식'} 요청`;
+    
+    selectedModels.forEach((modelId) => {
+      addMessage(modelId, userImageMessage, true, requestId);
+    });
+    
+    // optimal 칼럼에도 사용자 메시지 추가
+    addMessage('optimal', userImageMessage, true, requestId);
+    
+    try {
+      const token = localStorage.getItem("accessToken");
+      const headers = {};
+      
+      // 토큰이 있는 경우에만 Authorization 헤더 추가
+      if (token) {
+        headers["Authorization"] = `Token ${token}`;
+      }
+      
+      // 응답 중인 상태로 설정
+      const respondingModels = {};
+      selectedModels.forEach(model => {
+        respondingModels[model] = true;
+      });
+      setRespondingBots({...respondingBots, ...respondingModels});
+      
+      // 이미지 분석 API 엔드포인트로 요청 
+      // 참고: 백엔드에 '/analyze-image/' 엔드포인트를 구현해야 함
+      const response = await fetch(`http://localhost:8000/analyze-image/`, {
+        method: "POST",
+        headers, // Content-Type은 FormData 사용 시 자동 설정됨
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      // 스트림 응답 처리 (기존 sendMessage 함수와 유사)
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          console.log('Image analysis stream complete');
+          break;
+        }
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+        
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+            console.log('Received image analysis data:', data);
+            
+            if (data.type === 'bot_response' && selectedModels.includes(data.botId)) {
+              // 각 모델의 응답을 받는 즉시 표시
+              addMessage(data.botId, data.response, false, data.requestId || requestId);
+              
+              // 모델 응답 완료 상태 업데이트
+              setRespondingBots(prev => ({
+                ...prev,
+                [data.botId]: false
+              }));
+            } 
+            else if (data.type === 'bot_error' && selectedModels.includes(data.botId)) {
+              // 에러 메시지 추가
+              addMessage(data.botId, `오류가 발생했습니다: ${data.error}`, false, data.requestId || requestId);
+              
+              // 오류 발생한 모델 응답 완료 처리
+              setRespondingBots(prev => ({
+                ...prev,
+                [data.botId]: false
+              }));
+            }
+            else if (data.type === 'similarity_analysis') {
+              // 유사도 분석 결과 저장
+              setSimilarityResults(prev => ({
+                ...prev,
+                [requestId]: {
+                  requestId,
+                  timestamp: data.timestamp,
+                  userMessage: data.userMessage || userImageMessage,
+                  ...data.result
+                }
+              }));
+            }
+            else if (data.type === 'analysis') {
+              // 분석 결과 저장
+              const imageAnalysis = {
+                botName: data.preferredModel,
+                bestResponse: data.best_response,
+                analysis: data.analysis,
+                reasoning: data.reasoning,
+                timestamp: Date.now(),
+                requestId: data.requestId || requestId,
+                userMessage: data.userMessage || userImageMessage,
+                imageAnalysisMode: analysisMode
+              };
+              
+              // 이미지 분석 결과 업데이트
+              setImageAnalysisResults(prev => ({
+                ...prev,
+                [requestId]: imageAnalysis
+              }));
+              
+              // 일반 분석 결과도 업데이트
+              setAnalysisResults(prev => ({
+                ...prev,
+                [requestId]: imageAnalysis
+              }));
+            }
+          } catch (e) {
+            console.error('Error parsing image analysis chunk:', e, line);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Image analysis error:", error);
+      // 에러 메시지를 선택된 모든 봇에 표시
+      selectedModels.forEach((modelId) => {
+        addMessage(modelId, `이미지 분석 오류: ${error.message}`, false, requestId);
+      });
+      
+      // 모든 선택된 모델 응답 완료 상태로 설정
+      const completedModels = {};
+      selectedModels.forEach(model => {
+        completedModels[model] = false;
+      });
+      setRespondingBots({...respondingBots, ...completedModels});
+    } finally {
+      setIsLoading(false);
+      setIsProcessingImage(false);
+    }
+  };
+  
+  // 모델 선택 상태 변경 시 사용자 설정 저장
+  useEffect(() => {
+    const saveUserPreferences = async () => {
+      try {
+        const token = localStorage.getItem("accessToken");
+        if (!token) {
+          console.log("No token found, skipping settings save");
+          return;
+        }
+
+        const settingsData = {
+          preferredModels: JSON.stringify(selectedModels),
+          language: (user && user.settings && user.settings.language) || 'ko'
+        };
+
+        const response = await fetch("http://localhost:8000/api/user/settings/", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Token ${token}`,
+          },
+          body: JSON.stringify(settingsData),
+        });
+
+        if (!response.ok) {
+          throw new Error("모델 설정 저장에 실패했습니다.");
+        }
+      } catch (error) {
+        console.error("Error saving model preferences:", error);
+      }
+    };
+
+    // 사용자가 로그인한 경우에만 설정 저장
+    if (user) {
+      saveUserPreferences();
+    }
+  }, [selectedModels, user]);
 
   return (
     <ChatContext.Provider
@@ -519,19 +1329,33 @@ const sendMessage = async (userMessage) => {
         messages,
         sendMessage,
         isLoading,
-        messagesEndRef,
-        selectedBot,
         analysisResults,
+        similarityResults, // 추가된 유사도 분석 결과
+        selectedModels,
+        setSelectedModels,
+        respondingBots,
+        isLoggedIn: !!user,
+        messagesEndRef,
+        // 기존 모델 선택 모달 관련 함수와 상태 추가
+        selectedBot,
+        setSelectedBot,
         isSelectionModalOpen,
         setIsSelectionModalOpen,
-        handleBotSelection
+        handleBotSelection,
+        processImageUpload,
+       isProcessingImage,
+     imageAnalysisResults,
+        
       }}
     >
       {children}
+      
+      {/* 로그인 여부와 상관없이 모델 선택 모달 표시 */}
       <SelectBotModal
         isOpen={isSelectionModalOpen}
-        onClose={() => selectedBot ? setIsSelectionModalOpen(false) : null}
+        onClose={() => setIsSelectionModalOpen(false)}
         onSelectBot={handleBotSelection}
+        currentModel={selectedBot}
       />
     </ChatContext.Provider>
   );
@@ -545,140 +1369,3 @@ export const useChat = () => {
   }
   return context;
 };
-
-// ChatInterface 컴포넌트
-export const ChatInterface = () => {
-  const {
-    messages,
-    sendMessage,
-    isLoading,
-    messagesEndRef,
-    selectedBot,
-    setSelectedBot,
-    analysisResults
-  } = useChat();
-  const [userInput, setUserInput] = useState("");
-  const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
-  const [currentAnalysisResult, setCurrentAnalysisResult] = useState(null);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (userInput.trim()) {
-      sendMessage(userInput);
-      setUserInput("");
-    }
-  };
-
-  const handleShowAnalysis = (messageIndex, botMessages) => {
-    const userMessage = botMessages[messageIndex-1]?.text;
-    if (userMessage && analysisResults[userMessage]) {
-      setCurrentAnalysisResult(analysisResults[userMessage]);
-      setIsAnalysisModalOpen(true);
-    }
-  };
-
-  return (
-    <div className="flex flex-col h-screen max-w-7xl mx-auto p-4">
-      {/* AI 선택 영역 */}
-      <div className="mb-6 bg-white p-4 rounded-lg shadow-sm">
-        <div className="flex items-center gap-4">
-          <div>
-            <label htmlFor="bot-select" className="block text-sm font-medium text-gray-700 mb-1">
-              응답 분석 AI 선택
-            </label>
-            <select
-              id="bot-select"
-              value={selectedBot}
-              onChange={(e) => setSelectedBot(e.target.value)}
-              className="p-2 border rounded shadow-sm"
-            >
-              <option value="gpt">GPT-3.5</option>
-              <option value="claude">Claude</option>
-              <option value="mixtral">Mixtral</option>
-            </select>
-          </div>
-          <div className="text-sm text-gray-600">
-            선택한 AI가 다른 AI들의 응답을 분석하여 최적의 답변을 제공합니다.
-          </div>
-        </div>
-      </div>
-
-      {/* 채팅 영역 */}
-      <div className="grid grid-cols-3 gap-4 flex-1 overflow-y-auto">
-        {Object.entries(messages).map(([botName, botMessages]) => (
-          <div key={botName} className="border rounded-lg p-4 overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white py-2">
-              {botName.toUpperCase()}
-            </h2>
-            <div className="space-y-4">
-              {botMessages.map((msg, idx) => (
-                <div key={idx} className="mb-4">
-                  <div
-                    className={`p-3 rounded-lg ${
-                      msg.isUser 
-                        ? "bg-blue-100 ml-auto" 
-                        : "bg-gray-100"
-                    }`}
-                  >
-                    <p>{msg.text}</p>
-                  </div>
-                  {!msg.isUser && (
-                    <button
-                      onClick={() => handleShowAnalysis(idx, botMessages)}
-                      className="mt-2 px-3 py-1 text-sm flex items-center gap-1 border rounded-md transition-colors"
-                      disabled={!botMessages[idx-1]}
-                      style={{
-                        backgroundColor: botMessages[idx-1] && analysisResults[botMessages[idx-1].text] ? "#EBF5FF" : "#F3F4F6",
-                        borderColor: botMessages[idx-1] && analysisResults[botMessages[idx-1].text] ? "#93C5FD" : "#E5E7EB",
-                        color: botMessages[idx-1] ? (analysisResults[botMessages[idx-1].text] ? "#2563EB" : "#6B7280") : "#9CA3AF"
-                      }}
-                    >
-                      <span>{botMessages[idx-1] ? (analysisResults[botMessages[idx-1].text] ? "📊" : "⏳") : "❌"}</span>
-                      {botMessages[idx-1] ? (
-                        analysisResults[botMessages[idx-1].text] 
-                          ? "분석 결과 보기" 
-                          : "분석 중..."
-                      ) : "분석 불가"}
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* 입력 폼 */}
-      <form onSubmit={handleSubmit} className="mt-4">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            className="flex-1 p-2 border rounded shadow-sm"
-            placeholder="메시지를 입력하세요..."
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-500 text-white rounded shadow hover:bg-blue-600 transition-colors disabled:bg-blue-300"
-            disabled={isLoading}
-          >
-            {isLoading ? "처리 중..." : "전송"}
-          </button>
-        </div>
-      </form>
-
-      <div ref={messagesEndRef} />
-
-  
-      {/* 분석 결과 모달
-      <AnalysisModal
-        isOpen={isAnalysisModalOpen}
-        onClose={() => setIsAnalysisModalOpen(false)}
-        result={currentAnalysisResult}
-      /> */}
-    </div>
-  );
-};
-

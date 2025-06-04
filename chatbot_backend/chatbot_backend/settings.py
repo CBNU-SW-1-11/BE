@@ -3,6 +3,9 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
+OPENAI_API_KEY = "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"
+ANTHROPIC_API_KEY = "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"
+GROQ_API_KEY = "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"
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -66,6 +69,8 @@ SOCIAL_AUTH_PIPELINE = (
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ],
 }
 from datetime import timedelta
@@ -95,8 +100,6 @@ AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',  # Keep the default backend
 )
 
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '<your-google-client-id>'
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '<your-google-client-secret>'
 
 # Add necessary REST Framework and OAuth2 settings
 REST_FRAMEWORK = {
@@ -157,18 +160,33 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.TokenAuthentication',
     ],
 }
+ANALYZER_BOT = 'claude'  # 기본값을 'claude'로 설정
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'ai_of_ai',  # 원하는 데이터베이스 이름
+        'NAME': 'AIofAI',  # 원하는 데이터베이스 이름
         'USER': 'root',                # MySQL 사용자명
         'PASSWORD': 'k13976376',   # MySQL 비밀번호
         'HOST': 'localhost',
         'PORT': '3306',
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+            'init_command': "SET NAMES 'utf8mb4'"
+    }
     }
 }
 
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.SessionAuthentication',  # 기본 세션 인증
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # JWT 인증
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',  # 인증된 사용자만 접근 가능
+    ),
+}
 
 # REST API 기본 설정
 REST_USE_JWT = True
@@ -176,7 +194,9 @@ ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 ACCOUNT_EMAIL_REQUIRED = True
 
 INSTALLED_APPS = [
+    
     'django.contrib.admin',
+    
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -186,8 +206,11 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'corsheaders',
     'django.contrib.sites',
+
+ # Token 인증 사용 시
     
     'rest_framework_social_oauth2',
+    'rest_framework_simplejwt',
 
     'allauth',
     'allauth.account',
@@ -195,12 +218,17 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.kakao',
     
+    
 
     'dj_rest_auth',
 
 
     'chat.apps.ChatConfig',
 ]
+SIMPLE_JWT = {
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+REST_USE_JWT = True
 AUTH_USER_MODEL = 'auth.User' 
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '94821981810-ftg2njljaurf7p50vpgs24bimkc7mfcg.apps.googleusercontent.com'
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
@@ -224,7 +252,23 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 
-
+# settings.py
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
 
 # settings.py
 
@@ -299,4 +343,32 @@ TEMPLATES = [
             ],
         },
     },
+]
+# settings.py
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',  # 인증된 사용자만 접근 가능
+    ]
+}
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication', # 토큰 인증 추가
+        # JWT 사용 시: 'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ]
+}
+
+# CORS 설정 확인
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # 프론트엔드 개발 서버 주소
 ]
