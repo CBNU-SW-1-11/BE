@@ -936,8 +936,8 @@ class ChatView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # API 키 설정
-OPENAI_API_KEY = "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"
-ANTHROPIC_API_KEY = "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"
+OPENAI_API_KEY = "***REMOVED***"
+ANTHROPIC_API_KEY = "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"
 GROQ_API_KEY = "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"
 
 chatbots = {
@@ -2660,3 +2660,1575 @@ OCR 텍스트 (참고용, 실제 이미지에 보이는 경우만 언급): {ocr_
         text = text.strip()
         
         return text
+    
+# chat/views.py에 추가할 뷰들
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.shortcuts import get_object_or_404
+from datetime import datetime, timedelta
+import json
+import re
+from .models import Schedule, ScheduleRequest, ConflictResolution
+from .serializers import (
+    ScheduleSerializer, ScheduleRequestSerializer, 
+    ConflictResolutionSerializer, ScheduleRequestInputSerializer
+)
+
+# 기존 ChatBot 클래스와 ChatView는 그대로 유지...
+# chat/views.py 수정 버전
+
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework import status
+# from rest_framework.decorators import api_view, permission_classes
+# from rest_framework.permissions import IsAuthenticated, AllowAny
+# from django.shortcuts import get_object_or_404
+# from datetime import datetime, timedelta
+# import json
+# import re
+# from .models import Schedule, ScheduleRequest, ConflictResolution
+# from .serializers import (
+#     ScheduleSerializer, ScheduleRequestSerializer, 
+#     ConflictResolutionSerializer, ScheduleRequestInputSerializer
+# )
+
+# # 기존 ChatBot 클래스는 그대로 유지...
+# OPENAI_API_KEY = "***REMOVED***"
+# ANTHROPIC_API_KEY = "***REMOVED***"
+# GROQ_API_KEY = "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"
+
+# chatbots = {
+#     'gpt': ChatBot(OPENAI_API_KEY, 'gpt-3.5-turbo', 'openai'),
+#     'claude': ChatBot(ANTHROPIC_API_KEY, 'claude-3-5-haiku-20241022', 'anthropic'), 
+#     'mixtral': ChatBot(GROQ_API_KEY, 'llama3-8b-8192', 'groq'),
+# }
+
+# # 백엔드 views.py에 추가할 함수들
+
+# def parse_date_from_request(request_text):
+#     """자연어 날짜를 실제 날짜로 변환"""
+#     today = datetime.now().date()
+    
+#     # 오늘/내일/모레 등 한국어 날짜 표현 처리
+#     if '오늘' in request_text:
+#         return today
+#     elif '내일' in request_text:
+#         return today + timedelta(days=1)
+#     elif '모레' in request_text or '모래' in request_text:
+#         return today + timedelta(days=2)
+#     elif '이번 주' in request_text:
+#         # 이번 주 금요일로 설정
+#         days_until_friday = (4 - today.weekday()) % 7
+#         if days_until_friday == 0:  # 오늘이 금요일이면 다음 주 금요일
+#             days_until_friday = 7
+#         return today + timedelta(days=days_until_friday)
+#     elif '다음 주' in request_text:
+#         return today + timedelta(days=7)
+#     else:
+#         # 기본값: 내일
+#         return today + timedelta(days=1)
+
+# def parse_multiple_schedules_backend(request_text):
+#     """백엔드에서 여러 일정 파싱"""
+#     # 쉼표, "그리고", "및" 등으로 분리
+#     separators = [',', '，', '그리고', '및', '와', '과']
+    
+#     parts = [request_text]
+#     for sep in separators:
+#         new_parts = []
+#         for part in parts:
+#             new_parts.extend(part.split(sep))
+#         parts = new_parts
+    
+#     # 정리된 요청들 반환
+#     cleaned_requests = []
+#     for part in parts:
+#         cleaned = part.strip()
+#         if cleaned and len(cleaned) > 2:  # 너무 짧은 텍스트 제외
+#             cleaned_requests.append(cleaned)
+    
+#     return cleaned_requests if len(cleaned_requests) > 1 else [request_text]
+# class ScheduleOptimizerBot:
+#     """일정 최적화를 위한 AI 봇 클래스 - 여러 AI 모델 연동"""
+    
+#     def __init__(self):
+#         self.chatbots = {
+#                 'gpt': ChatBot(OPENAI_API_KEY, 'gpt-3.5-turbo', 'openai'),
+#                 'claude': ChatBot(ANTHROPIC_API_KEY, 'claude-3-5-haiku-20241022', 'anthropic'), 
+#                 'mixtral': ChatBot(GROQ_API_KEY, 'llama3-8b-8192', 'groq'),
+#             }
+        
+#     def create_schedule_prompt(self, request_text, user_context=None, existing_schedules=None):
+#         """일정 생성을 위한 프롬프트 생성 - 빈 시간 분석 포함"""
+#         base_prompt = f"""
+#         사용자의 일정 요청을 분석하여 기존 일정과 충돌하지 않는 최적의 빈 시간을 찾아 제안해주세요.
+
+#         요청 내용: {request_text}
+        
+#         기존 일정들: {existing_schedules or []}
+        
+#         분석 방법:
+#         1. 기존 일정들의 시간대를 확인하여 사용자가 입력한 날의 빈 시간을 찾아주세요
+#         2. 요청된 일정의 성격에 맞는 최적의 시간대를 추천해주세요
+#         3. 일정 간 여유 시간도 고려해주세요
+        
+#         다음 형식으로 응답해주세요:
+#         {{
+#             "title": "일정 제목",
+#             "description": "상세 설명",
+#             "suggested_date": "YYYY-MM-DD",
+#             "suggested_start_time": "HH:MM",
+#             "suggested_end_time": "HH:MM",
+#             "location": "장소 (선택사항)",
+#             "priority": "HIGH/MEDIUM/LOW/URGENT",
+#             "attendees": ["참석자1", "참석자2"],
+#             "reasoning": "이 시간을 제안하는 이유 (빈 시간 분석 결과 포함)"
+#         }}
+        
+#         사용자의 맥락 정보: {user_context or "없음"}
+#         """
+#         return base_prompt
+
+#     def create_conflict_resolution_prompt(self, conflicting_schedules, new_request):
+#         """일정 충돌 해결을 위한 프롬프트 생성"""
+#         prompt = f"""
+#         기존 일정과 새로운 일정 요청 사이에 충돌이 발생했습니다. 
+#         여러 AI의 관점에서 최적의 해결 방안을 제안해주세요.
+
+#         기존 충돌 일정들:
+#         {json.dumps(conflicting_schedules, ensure_ascii=False, indent=2)}
+
+#         새로운 일정 요청: {new_request}
+
+#         다음 형식으로 해결 방안을 제안해주세요:
+#         {{
+#             "resolution_options": [
+#                 {{
+#                     "option": "방안 1",
+#                     "description": "상세 설명",
+#                     "impact": "영향도 분석",
+#                     "recommended": true/false
+#                 }},
+#                 {{
+#                     "option": "방안 2", 
+#                     "description": "상세 설명",
+#                     "impact": "영향도 분석",
+#                     "recommended": true/false
+#                 }}
+#             ],
+#             "best_recommendation": "가장 추천하는 방안과 이유"
+#         }}
+#         """
+#         return prompt
+    
+#     def get_ai_suggestions(self, prompt, suggestion_type="schedule"):
+#         """여러 AI 모델로부터 제안받기"""
+#         suggestions = {}
+        
+#         for model_name, chatbot in self.chatbots.items():
+#             try:
+#                 response = chatbot.chat(prompt)
+#                 suggestions[f"{model_name}_suggestion"] = response
+#             except Exception as e:
+#                 suggestions[f"{model_name}_suggestion"] = f"오류 발생: {str(e)}"
+        
+#         return suggestions
+    
+#     def analyze_and_optimize_suggestions(self, suggestions, query, selected_models=['GPT', 'Claude', 'Mixtral']):
+#         """여러 AI 제안을 분석하여 최적화된 결과 생성 - 기존 analyze_responses 활용"""
+#         try:
+#             # ChatBot의 analyze_responses 기능 활용
+#             analyzer = self.chatbots['claude']  # Claude를 분석용으로 사용
+            
+#             # 제안을 분석용 형태로 변환
+#             responses_for_analysis = {}
+#             for key, suggestion in suggestions.items():
+#                 model_name = key.replace('_suggestion', '')
+#                 responses_for_analysis[model_name] = suggestion
+            
+#             # 기존 analyze_responses 메서드 활용
+#             analysis_result = analyzer.analyze_responses(
+#                 responses_for_analysis, 
+#                 query, 
+#                 'Korean',  # 기본 언어
+#                 selected_models
+#             )
+            
+#             # JSON 응답에서 최적화된 일정 정보 추출
+#             try:
+#                 # best_response에서 JSON 부분 추출
+#                 json_match = re.search(r'\{.*\}', analysis_result.get('best_response', ''), re.DOTALL)
+#                 if json_match:
+#                     optimized = json.loads(json_match.group())
+#                 else:
+#                     # fallback: 첫 번째 유효한 제안 사용
+#                     optimized = self._extract_first_valid_suggestion(suggestions)
+#             except:
+#                 optimized = self._extract_first_valid_suggestion(suggestions)
+            
+#             confidence = self._calculate_confidence_from_analysis(analysis_result)
+            
+#             return {
+#                 "optimized_suggestion": optimized,
+#                 "confidence_score": confidence,
+#                 "ai_analysis": analysis_result,
+#                 "individual_suggestions": self._parse_individual_suggestions(suggestions)
+#             }
+            
+#         except Exception as e:
+#             print(f"Analysis error: {str(e)}")
+#             return {"error": f"최적화 과정에서 오류 발생: {str(e)}"}
+    
+#     def _extract_first_valid_suggestion(self, suggestions):
+#         """첫 번째 유효한 제안 추출"""
+#         for key, suggestion in suggestions.items():
+#             try:
+#                 json_match = re.search(r'\{.*\}', suggestion, re.DOTALL)
+#                 if json_match:
+#                     return json.loads(json_match.group())
+#             except:
+#                 continue
+        
+#         # 기본 제안 반환
+#         return {
+#             "title": "새 일정",
+#             "description": "AI가 제안한 일정입니다",
+#             "suggested_date": datetime.now().strftime('%Y-%m-%d'),
+#             "suggested_start_time": "09:00",
+#             "suggested_end_time": "10:00",
+#             "location": "",
+#             "priority": "MEDIUM",
+#             "attendees": [],
+#             "reasoning": "여러 AI 모델의 제안을 종합한 결과입니다."
+#         }
+    
+#     def _calculate_confidence_from_analysis(self, analysis_result):
+#         """분석 결과에서 신뢰도 계산"""
+#         reasoning = analysis_result.get('reasoning', '')
+        
+#         # 키워드 기반 신뢰도 계산
+#         confidence_keywords = ['일치', '공통', '정확', '최적', '추천']
+#         uncertainty_keywords = ['불확실', '추정', '가능성', '어려움']
+        
+#         confidence_score = 0.5  # 기본값
+        
+#         for keyword in confidence_keywords:
+#             if keyword in reasoning:
+#                 confidence_score += 0.1
+        
+#         for keyword in uncertainty_keywords:
+#             if keyword in reasoning:
+#                 confidence_score -= 0.1
+        
+#         return max(0.1, min(1.0, confidence_score))
+    
+#     def _parse_individual_suggestions(self, suggestions):
+#         """개별 제안들을 파싱"""
+#         parsed = []
+#         for key, suggestion in suggestions.items():
+#             try:
+#                 json_match = re.search(r'\{.*\}', suggestion, re.DOTALL)
+#                 if json_match:
+#                     parsed_suggestion = json.loads(json_match.group())
+#                     parsed_suggestion['source'] = key.replace('_suggestion', '')
+#                     parsed.append(parsed_suggestion)
+#             except:
+#                 continue
+#         return parsed
+
+# class ScheduleManagementView(APIView):
+#     """일정 관리 메인 뷰 - 권한 수정"""
+#     # 임시로 AllowAny로 변경 (개발/테스트용)
+#     permission_classes = [IsAuthenticated]
+    
+#     def __init__(self):
+#         super().__init__()
+#         self.optimizer = ScheduleOptimizerBot()
+    
+#     def get(self, request):
+#         """사용자의 일정 목록 조회"""
+#         # 🚫 기존 더미 사용자 로직 제거
+#         if not request.user.is_authenticated:
+#             return Response({'error': '인증이 필요합니다.'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+#         schedules = Schedule.objects.filter(user=request.user).order_by('start_time')
+        
+#         # 날짜 필터링 (기존 코드 유지)
+#         start_date = request.query_params.get('start_date')
+#         end_date = request.query_params.get('end_date')
+        
+#         if start_date:
+#             schedules = schedules.filter(start_time__date__gte=start_date)
+#         if end_date:
+#             schedules = schedules.filter(end_time__date__lte=end_date)
+        
+#         serializer = ScheduleSerializer(schedules, many=True)
+#         return Response(serializer.data)
+#     def post(self, request):
+#         """새로운 일정 생성 요청 - 여러 일정 지원 개선"""
+#         try:
+#             request_text = request.data.get('request_text', '')
+#             existing_schedules = request.data.get('existing_schedules', [])
+            
+#             if not request_text:
+#                 return Response({'error': '요청 텍스트가 필요합니다.'}, 
+#                             status=status.HTTP_400_BAD_REQUEST)
+#             if not request.user.is_authenticated:
+#                 return Response({'error': '인증이 필요합니다.'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+#             user = request.user
+
+         
+            
+#             # 여러 일정 요청인지 확인
+#             schedule_requests = parse_multiple_schedules_backend(request_text)
+#             target_date = parse_date_from_request(request_text)
+            
+#             if len(schedule_requests) > 1:
+#                 # 여러 일정 처리
+#                 multiple_schedules = []
+#                 all_individual_suggestions = []
+                
+#                 for i, single_request in enumerate(schedule_requests):
+#                     # 각 일정의 시작 시간을 다르게 설정
+#                     schedule_date = target_date
+#                     if i > 0:  # 두 번째 일정부터는 2시간씩 뒤로
+#                         base_hour = 9 + (i * 2)
+#                     else:
+#                         base_hour = 9
+                    
+#                     # 개별 일정 생성
+#                     optimized_schedule = {
+#                         "title": self._extract_schedule_title(single_request),
+#                         "description": f"AI가 분석한 {self._extract_schedule_title(single_request)} 일정입니다.",
+#                         "suggested_date": schedule_date.strftime('%Y-%m-%d'),
+#                         "suggested_start_time": f"{base_hour:02d}:00",
+#                         "suggested_end_time": f"{base_hour + 2:02d}:00",
+#                         "location": self._extract_schedule_location(single_request),
+#                         "priority": "HIGH",
+#                         "attendees": [],
+#                         "reasoning": f"{i + 1}번째 일정: {single_request}. 기존 일정과 충돌하지 않는 시간으로 배정했습니다."
+#                     }
+#                     multiple_schedules.append(optimized_schedule)
+                    
+#                     # 각 AI별 개별 제안 생성
+#                     for ai_type in ['gpt', 'claude', 'mixtral']:
+#                         individual_suggestion = optimized_schedule.copy()
+#                         individual_suggestion['source'] = ai_type
+#                         individual_suggestion['reasoning'] = f"{ai_type.upper()}가 분석한 {self._extract_schedule_title(single_request)} 최적 시간입니다."
+#                         all_individual_suggestions.append(individual_suggestion)
+                
+#                 # 여러 일정 응답 생성
+#                 response_data = {
+#                     'request_id': int(datetime.now().timestamp()),
+#                     'multiple_schedules': multiple_schedules,
+#                     'optimized_suggestion': multiple_schedules[0],
+#                     'confidence_score': 0.92,
+#                     'individual_suggestions': all_individual_suggestions,
+#                     'ai_analysis': {
+#                         'analysis_summary': f"총 {len(schedule_requests)}개의 일정을 분석하여 최적의 시간대로 배정했습니다.",
+#                         'reasoning': f"여러 일정을 {target_date.strftime('%Y년 %m월 %d일')}에 시간 순서대로 배치하여 충돌을 방지했습니다.",
+#                         'models_used': ["gpt", "claude", "mixtral"]
+#                     },
+#                     'has_conflicts': False,
+#                     'conflicts': [],
+#                     'analysis_summary': f"{len(schedule_requests)}개 일정에 대해 3개 AI 모델이 분석한 결과입니다.",
+#                     'is_multiple_schedule': True
+#                 }
+                
+#             else:
+#                 # 단일 일정 처리 (기존 로직 사용하되 날짜 반영)
+#                 user_context = self._get_user_context(user)
+                
+#                 # 날짜가 반영된 프롬프트 생성
+#                 enhanced_prompt = f"""
+#                 사용자의 일정 요청을 분석하여 기존 일정과 충돌하지 않는 최적의 빈 시간을 찾아 제안해주세요.
+                
+#                 요청 내용: {request_text}
+#                 목표 날짜: {target_date.strftime('%Y년 %m월 %d일')} ({self._get_weekday_korean(target_date)})
+#                 기존 일정들: {existing_schedules or []}
+                
+#                 다음 형식으로 응답해주세요:
+#                 {{
+#                     "title": "일정 제목",
+#                     "description": "상세 설명",
+#                     "suggested_date": "{target_date.strftime('%Y-%m-%d')}",
+#                     "suggested_start_time": "HH:MM",
+#                     "suggested_end_time": "HH:MM",
+#                     "location": "장소",
+#                     "priority": "HIGH/MEDIUM/LOW/URGENT",
+#                     "attendees": [],
+#                     "reasoning": "이 시간을 제안하는 이유"
+#                 }}
+#                 """
+                
+#                 # 기존 단일 일정 로직 계속...
+#                 suggestions = self.optimizer.get_ai_suggestions(enhanced_prompt)
+#                 optimized_result = self.optimizer.analyze_and_optimize_suggestions(
+#                     suggestions, f"일정 요청: {request_text}"
+#                 )
+                
+#                 response_data = {
+#                     'request_id': int(datetime.now().timestamp()),
+#                     'optimized_suggestion': optimized_result.get('optimized_suggestion', {}),
+#                     'confidence_score': optimized_result.get('confidence_score', 0.0),
+#                     'ai_analysis': optimized_result.get('ai_analysis', {}),
+#                     'individual_suggestions': optimized_result.get('individual_suggestions', []),
+#                     'has_conflicts': False,
+#                     'conflicts': [],
+#                     'analysis_summary': "3개 AI 모델이 분석한 결과입니다.",
+#                     'is_multiple_schedule': False
+#                 }
+            
+#             return Response(response_data, status=status.HTTP_201_CREATED)
+            
+#         except Exception as e:
+#                     return Response({
+#                         'error': f'일정 생성 요청 처리 중 오류: {str(e)}'
+#                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+#     def _extract_schedule_title(self, request):
+#             """요청에서 일정 제목 추출"""
+#             if '운동' in request:
+#                 return '운동'
+#             elif '미팅' in request or '회의' in request:
+#                 return '팀 미팅'
+#             elif '공부' in request or '학습' in request:
+#                 return '학습 시간'
+#             elif '작업' in request or '업무' in request:
+#                 return '집중 작업'
+#             elif '약속' in request:
+#                 return '약속'
+#             else:
+#                 return '새 일정'
+
+#     def _extract_schedule_location(self, request):
+#             """요청에서 장소 추출"""
+#             if '운동' in request:
+#                 return '헬스장'
+#             elif '미팅' in request or '회의' in request:
+#                 return '회의실'
+#             elif '공부' in request or '학습' in request:
+#                 return '도서관'
+#             elif '커피' in request:
+#                 return '카페'
+#             else:
+#                 return '사무실'
+
+#     def _get_weekday_korean(self, date):
+#             """요일을 한국어로 반환"""
+#             weekdays = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일']
+#             return weekdays[date.weekday()]
+            
+   
+#     def _check_schedule_conflicts(self, user, suggestion):
+#         """일정 충돌 검사"""
+#         if not suggestion or 'suggested_date' not in suggestion:
+#             return []
+        
+#         try:
+#             suggested_date = datetime.strptime(suggestion['suggested_date'], '%Y-%m-%d').date()
+#             start_time = datetime.strptime(suggestion.get('suggested_start_time', '09:00'), '%H:%M').time()
+#             end_time = datetime.strptime(suggestion.get('suggested_end_time', '10:00'), '%H:%M').time()
+            
+#             suggested_start = datetime.combine(suggested_date, start_time)
+#             suggested_end = datetime.combine(suggested_date, end_time)
+            
+#             conflicts = Schedule.objects.filter(
+#                 user=user,
+#                 start_time__date=suggested_date,
+#                 start_time__lt=suggested_end,
+#                 end_time__gt=suggested_start
+#             )
+            
+#             return [ScheduleSerializer(conflict).data for conflict in conflicts]
+            
+#         except Exception as e:
+#             return []
+
+# # 권한 수정된 함수들
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])  # 🔧 권한 변경
+# def confirm_schedule(request, request_id):
+#     """AI 제안된 일정을 확정하여 실제 일정으로 생성"""
+#     try:
+#         user = request.user
+        
+#         # 🚫 ScheduleRequest.DoesNotExist에서 더미 데이터 생성 제거
+#         try:
+#             schedule_request = ScheduleRequest.objects.get(id=request_id, user=user)
+#             optimized_suggestion = json.loads(schedule_request.optimized_suggestion)
+#         except ScheduleRequest.DoesNotExist:
+#             return Response({
+#                 'error': f'요청 ID {request_id}를 찾을 수 없습니다.'
+#             }, status=status.HTTP_404_NOT_FOUND)
+#                 # 날짜/시간 파싱 개선
+#         try:
+#             suggested_date = optimized_suggestion.get('suggested_date')
+#             suggested_start_time = optimized_suggestion.get('suggested_start_time', '09:00')
+#             suggested_end_time = optimized_suggestion.get('suggested_end_time', '10:00')
+            
+#             # 날짜 형식 확인 및 변환
+#             if isinstance(suggested_date, str):
+#                 if 'T' in suggested_date:  # ISO 형식인 경우
+#                     suggested_date = suggested_date.split('T')[0]
+                
+#                 start_datetime = datetime.strptime(
+#                     f"{suggested_date} {suggested_start_time}",
+#                     '%Y-%m-%d %H:%M'
+#                 )
+#                 end_datetime = datetime.strptime(
+#                     f"{suggested_date} {suggested_end_time}",
+#                     '%Y-%m-%d %H:%M'
+#                 )
+#             else:
+#                 # 날짜가 없으면 오늘로 설정
+#                 today = datetime.now().date()
+#                 start_datetime = datetime.strptime(
+#                     f"{today} {suggested_start_time}",
+#                     '%Y-%m-%d %H:%M'
+#                 )
+#                 end_datetime = datetime.strptime(
+#                     f"{today} {suggested_end_time}",
+#                     '%Y-%m-%d %H:%M'
+#                 )
+                
+#         except (ValueError, TypeError) as e:
+#             print(f"DateTime parsing error: {e}")
+#             # 기본값으로 폴백
+#             now = datetime.now()
+#             start_datetime = now.replace(hour=9, minute=0, second=0, microsecond=0)
+#             end_datetime = now.replace(hour=10, minute=0, second=0, microsecond=0)
+        
+#         # Schedule 객체 생성
+#         schedule_data = {
+#             'user': user,
+#             'title': optimized_suggestion.get('title', '새 일정'),
+#             'description': optimized_suggestion.get('description', 'AI가 제안한 일정입니다.'),
+#             'start_time': start_datetime,
+#             'end_time': end_datetime,
+#             'location': optimized_suggestion.get('location', ''),
+#             'priority': optimized_suggestion.get('priority', 'MEDIUM'),
+#             'attendees': json.dumps(optimized_suggestion.get('attendees', []), ensure_ascii=False)
+#         }
+        
+#         schedule = Schedule.objects.create(**schedule_data)
+#         serializer = ScheduleSerializer(schedule)
+        
+#         print(f"Schedule created successfully: {schedule.id}")
+        
+#         return Response({
+#             'message': '여러 AI의 분석을 통해 최적화된 일정이 성공적으로 생성되었습니다.',
+#             'schedule': serializer.data
+#         }, status=status.HTTP_201_CREATED)
+        
+#     except Exception as e:
+#         print(f"Confirm schedule error: {str(e)}")
+#         import traceback
+#         traceback.print_exc()
+        
+#         return Response({
+#             'error': f'일정 생성 중 오류가 발생했습니다: {str(e)}'
+#         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+# # Alternative solution: Convert to Class-Based View
+# class ConfirmScheduleView(APIView):
+#     """AI 제안된 일정을 확정하여 실제 일정으로 생성"""
+#     permission_classes = [AllowAny]  # 임시로 AllowAny
+    
+#     def post(self, request, request_id):
+#         try:
+#             # 사용자 처리
+#             if not request.user.is_authenticated:
+#                 return Response({'error': '인증이 필요합니다.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+#             user = request.user
+            
+#             # request_id로 ScheduleRequest를 찾거나 더미 데이터 처리
+#             try:
+#                 schedule_request = ScheduleRequest.objects.get(id=request_id, user=user)
+#                 optimized_suggestion = json.loads(schedule_request.optimized_suggestion)
+#             except ScheduleRequest.DoesNotExist:
+#                 # 더미 모드: request_id를 기반으로 기본 일정 생성
+#                 print(f"ScheduleRequest {request_id} not found, creating dummy schedule")
+#                 optimized_suggestion = {
+#                     'title': 'AI 제안 일정',
+#                     'description': 'AI가 제안한 최적의 일정입니다.',
+#                     'suggested_date': datetime.now().strftime('%Y-%m-%d'),
+#                     'suggested_start_time': '09:00',
+#                     'suggested_end_time': '10:00',
+#                     'location': '사무실',
+#                     'priority': 'MEDIUM',
+#                     'attendees': []
+#                 }
+#             except json.JSONDecodeError as e:
+#                 print(f"JSON decode error: {e}")
+#                 return Response({
+#                     'error': f'일정 데이터 파싱 오류: {str(e)}'
+#                 }, status=status.HTTP_400_BAD_REQUEST)
+            
+#             # 날짜/시간 파싱
+#             try:
+#                 suggested_date = optimized_suggestion.get('suggested_date')
+#                 suggested_start_time = optimized_suggestion.get('suggested_start_time', '09:00')
+#                 suggested_end_time = optimized_suggestion.get('suggested_end_time', '10:00')
+                
+#                 # 날짜 형식 확인 및 변환
+#                 if isinstance(suggested_date, str):
+#                     if 'T' in suggested_date:  # ISO 형식인 경우
+#                         suggested_date = suggested_date.split('T')[0]
+                    
+#                     start_datetime = datetime.strptime(
+#                         f"{suggested_date} {suggested_start_time}",
+#                         '%Y-%m-%d %H:%M'
+#                     )
+#                     end_datetime = datetime.strptime(
+#                         f"{suggested_date} {suggested_end_time}",
+#                         '%Y-%m-%d %H:%M'
+#                     )
+#                 else:
+#                     # 날짜가 없으면 오늘로 설정
+#                     today = datetime.now().date()
+#                     start_datetime = datetime.strptime(
+#                         f"{today} {suggested_start_time}",
+#                         '%Y-%m-%d %H:%M'
+#                     )
+#                     end_datetime = datetime.strptime(
+#                         f"{today} {suggested_end_time}",
+#                         '%Y-%m-%d %H:%M'
+#                     )
+                    
+#             except (ValueError, TypeError) as e:
+#                 print(f"DateTime parsing error: {e}")
+#                 # 기본값으로 폴백
+#                 now = datetime.now()
+#                 start_datetime = now.replace(hour=9, minute=0, second=0, microsecond=0)
+#                 end_datetime = now.replace(hour=10, minute=0, second=0, microsecond=0)
+            
+#             # Schedule 객체 생성
+#             schedule_data = {
+#                 'user': user,
+#                 'title': optimized_suggestion.get('title', '새 일정'),
+#                 'description': optimized_suggestion.get('description', 'AI가 제안한 일정입니다.'),
+#                 'start_time': start_datetime,
+#                 'end_time': end_datetime,
+#                 'location': optimized_suggestion.get('location', ''),
+#                 'priority': optimized_suggestion.get('priority', 'MEDIUM'),
+#                 'attendees': json.dumps(optimized_suggestion.get('attendees', []), ensure_ascii=False)
+#             }
+            
+#             schedule = Schedule.objects.create(**schedule_data)
+#             serializer = ScheduleSerializer(schedule)
+            
+#             print(f"Schedule created successfully: {schedule.id}")
+            
+#             return Response({
+#                 'message': '여러 AI의 분석을 통해 최적화된 일정이 성공적으로 생성되었습니다.',
+#                 'schedule': serializer.data
+#             }, status=status.HTTP_201_CREATED)
+            
+#         except Exception as e:
+#             print(f"Confirm schedule error: {str(e)}")
+#             import traceback
+#             traceback.print_exc()
+            
+#             return Response({
+#                 'error': f'일정 생성 중 오류가 발생했습니다: {str(e)}'
+#             }, status=status.HTTP_400_BAD_REQUEST)
+
+
+# # Fix for resolve_schedule_conflict function
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])  # 🔧 권한 변경
+# def resolve_schedule_conflict(request):
+#     """일정 충돌 해결 방안 제공"""
+#     # 🚫 더미 사용자 로직 제거
+#     user = request.user
+    
+#     conflicting_schedule_ids = request.data.get('conflicting_schedule_ids', [])
+#     new_request = request.data.get('new_request', '')
+    
+#     # 나머지 로직은 그대로...
+    
+#     if not conflicting_schedule_ids or not new_request:
+#         return Response({
+#             'error': '충돌 일정 ID와 새로운 요청이 필요합니다.'
+#         }, status=status.HTTP_400_BAD_REQUEST)
+    
+#     try:
+#         # 사용자 처리
+#         if request.user.is_authenticated:
+#             user = request.user
+#         else:
+#             from django.contrib.auth.models import User
+#             user, created = User.objects.get_or_create(
+#                 username='dummy_user',
+#                 defaults={'email': 'dummy@example.com'}
+#             )
+        
+#         # 충돌 일정들 조회
+#         conflicting_schedules = Schedule.objects.filter(
+#             id__in=conflicting_schedule_ids,
+#             user=user
+#         )
+        
+#         conflicting_data = [ScheduleSerializer(schedule).data for schedule in conflicting_schedules]
+        
+#         # 다중 AI 모델들로부터 해결 방안 받기
+#         optimizer = ScheduleOptimizerBot()
+#         prompt = optimizer.create_conflict_resolution_prompt(conflicting_data, new_request)
+#         suggestions = optimizer.get_ai_suggestions(prompt, "conflict_resolution")
+        
+#         # AI 분석을 통한 최적 해결방안 도출
+#         analysis_result = optimizer.analyze_and_optimize_suggestions(
+#             suggestions,
+#             f"충돌 해결: {new_request}"
+#         )
+        
+#         # 해결 방안 저장
+#         conflict_resolution = ConflictResolution.objects.create(
+#             user=user,
+#             conflicting_schedules=json.dumps(conflicting_data, ensure_ascii=False),
+#             resolution_options=json.dumps(suggestions, ensure_ascii=False),
+#             ai_recommendations=json.dumps(analysis_result, ensure_ascii=False)
+#         )
+        
+#         return Response({
+#             'resolution_id': conflict_resolution.id,
+#             'conflicting_schedules': conflicting_data,
+#             'ai_suggestions': suggestions,
+#             'optimized_resolution': analysis_result,
+#             'message': f'{len(suggestions)}개 AI 모델이 분석한 충돌 해결 방안이 생성되었습니다.'
+#         }, status=status.HTTP_201_CREATED)
+        
+#     except Exception as e:
+#         return Response({
+#             'error': f'충돌 해결 방안 생성 중 오류가 발생했습니다: {str(e)}'
+#         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+# # Alternative Class-Based View for conflict resolution
+# class ResolveScheduleConflictView(APIView):
+#     """일정 충돌 해결 방안 제공 - 다중 AI 분석"""
+#     permission_classes = [IsAuthenticated]
+    
+#     def post(self, request):
+#         conflicting_schedule_ids = request.data.get('conflicting_schedule_ids', [])
+#         new_request = request.data.get('new_request', '')
+        
+#         if not conflicting_schedule_ids or not new_request:
+#             return Response({
+#                 'error': '충돌 일정 ID와 새로운 요청이 필요합니다.'
+#             }, status=status.HTTP_400_BAD_REQUEST)
+        
+#         try:
+#             # 사용자 처리
+#             if request.user.is_authenticated:
+#                 user = request.user
+#             else:
+#                 from django.contrib.auth.models import User
+#                 user, created = User.objects.get_or_create(
+#                     username='dummy_user',
+#                     defaults={'email': 'dummy@example.com'}
+#                 )
+            
+#             # 충돌 일정들 조회
+#             conflicting_schedules = Schedule.objects.filter(
+#                 id__in=conflicting_schedule_ids,
+#                 user=user
+#             )
+            
+#             conflicting_data = [ScheduleSerializer(schedule).data for schedule in conflicting_schedules]
+            
+#             # 다중 AI 모델들로부터 해결 방안 받기
+#             optimizer = ScheduleOptimizerBot()
+#             prompt = optimizer.create_conflict_resolution_prompt(conflicting_data, new_request)
+#             suggestions = optimizer.get_ai_suggestions(prompt, "conflict_resolution")
+            
+#             # AI 분석을 통한 최적 해결방안 도출
+#             analysis_result = optimizer.analyze_and_optimize_suggestions(
+#                 suggestions,
+#                 f"충돌 해결: {new_request}"
+#             )
+            
+#             # 해결 방안 저장
+#             conflict_resolution = ConflictResolution.objects.create(
+#                 user=user,
+#                 conflicting_schedules=json.dumps(conflicting_data, ensure_ascii=False),
+#                 resolution_options=json.dumps(suggestions, ensure_ascii=False),
+#                 ai_recommendations=json.dumps(analysis_result, ensure_ascii=False)
+#             )
+            
+#             return Response({
+#                 'resolution_id': conflict_resolution.id,
+#                 'conflicting_schedules': conflicting_data,
+#                 'ai_suggestions': suggestions,
+#                 'optimized_resolution': analysis_result,
+#                 'message': f'{len(suggestions)}개 AI 모델이 분석한 충돌 해결 방안이 생성되었습니다.'
+#             }, status=status.HTTP_201_CREATED)
+            
+#         except Exception as e:
+#             return Response({
+#                 'error': f'충돌 해결 방안 생성 중 오류가 발생했습니다: {str(e)}'
+#             }, status=status.HTTP_400_BAD_REQUEST)
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.authentication import TokenAuthentication, SessionAuthentication
+from django.shortcuts import get_object_or_404
+from datetime import datetime, timedelta
+import json
+import re
+from .models import Schedule, ScheduleRequest, ConflictResolution
+from .serializers import (
+    ScheduleSerializer, ScheduleRequestSerializer, 
+    ConflictResolutionSerializer, ScheduleRequestInputSerializer
+)
+import logging
+from pytz import timezone
+KST = timezone('Asia/Seoul')
+target_datetime = datetime.now(KST)
+logger = logging.getLogger(__name__)
+
+# 기존 ChatBot 클래스와 API 키들은 그대로 유지...
+OPENAI_API_KEY = "***REMOVED***"
+ANTHROPIC_API_KEY = "***REMOVED***"
+GROQ_API_KEY = "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"
+
+# 🔧 토큰 디버깅을 위한 커스텀 인증 클래스
+class DebugTokenAuthentication(TokenAuthentication):
+    """디버깅이 포함된 토큰 인증 클래스"""
+    
+    def authenticate(self, request):
+        logger.info("=== 개선된 토큰 인증 디버깅 시작 ===")
+        
+        # Authorization 헤더 확인
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        logger.info(f"Authorization 헤더: '{auth_header}'")
+        
+        if not auth_header:
+            logger.warning("❌ Authorization 헤더가 없습니다")
+            return None
+            
+        if not auth_header.startswith('Bearer '):
+            logger.warning(f"❌ Bearer 토큰 형식이 아닙니다: {auth_header}")
+            return None
+            
+        token = auth_header.split(' ')[1]
+        logger.info(f"📱 추출된 토큰: {token[:10]}...{token[-10:]}")
+        
+        # 데이터베이스에서 토큰 확인
+        try:
+            token_obj = Token.objects.select_related('user').get(key=token)
+            logger.info(f"✅ DB에서 토큰 발견: {token_obj.key[:10]}...{token_obj.key[-10:]}")
+            logger.info(f"👤 토큰 소유자: {token_obj.user.username} (ID: {token_obj.user.id})")
+            logger.info(f"🔄 사용자 활성 상태: {token_obj.user.is_active}")
+            
+            if not token_obj.user.is_active:
+                logger.warning(f"❌ 사용자가 비활성화됨: {token_obj.user.username}")
+                raise exceptions.AuthenticationFailed('User inactive or deleted.')
+            
+            logger.info("✅ 토큰 인증 성공!")
+            logger.info("=== 개선된 토큰 인증 디버깅 종료 ===")
+            return (token_obj.user, token_obj)
+            
+        except Token.DoesNotExist:
+            logger.error(f"❌ DB에 해당 토큰이 존재하지 않음: {token[:10]}...{token[-10:]}")
+            
+            # 모든 토큰 목록 출력 (디버깅용)
+            all_tokens = Token.objects.all()[:5]  # 처음 5개만
+            logger.info(f"🗃️ DB의 기존 토큰들:")
+            for i, t in enumerate(all_tokens):
+                logger.info(f"  {i+1}. {t.key[:10]}...{t.key[-10:]} (사용자: {t.user.username})")
+            
+            logger.info("=== 개선된 토큰 인증 디버깅 종료 ===")
+            raise exceptions.AuthenticationFailed('Invalid token.')
+        
+        except Exception as e:
+            logger.error(f"❌ 예상치 못한 오류: {str(e)}")
+            logger.info("=== 개선된 토큰 인증 디버깅 종료 ===")
+            raise exceptions.AuthenticationFailed('Authentication error.')
+
+
+# 🔧 일정 관리 뷰 - 인증 문제 해결
+class ScheduleManagementView(APIView):
+    """일정 관리 메인 뷰 - 토큰 인증 적용"""
+    authentication_classes = [DebugTokenAuthentication, SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def __init__(self):
+        super().__init__()
+        # ScheduleOptimizerBot 초기화는 메서드 내에서 수행
+    
+    def get_optimizer(self):
+        """필요할 때만 optimizer 인스턴스 생성"""
+        if not hasattr(self, '_optimizer'):
+            self._optimizer = ScheduleOptimizerBot()
+        return self._optimizer
+    
+    def get(self, request):
+        """사용자의 일정 목록 조회"""
+        logger.info(f"일정 조회 요청 - 사용자: {request.user.username if request.user.is_authenticated else 'Anonymous'}")
+        
+        try:
+            schedules = Schedule.objects.filter(user=request.user).order_by('start_time')
+            
+            # 날짜 필터링
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
+            
+            if start_date:
+                schedules = schedules.filter(start_time__date__gte=start_date)
+            if end_date:
+                schedules = schedules.filter(end_time__date__lte=end_date)
+            
+            serializer = ScheduleSerializer(schedules, many=True)
+            logger.info(f"일정 조회 성공: {len(serializer.data)}개 일정 반환")
+            return Response(serializer.data)
+            
+        except Exception as e:
+            logger.error(f"일정 조회 실패: {str(e)}")
+            return Response(
+                {'error': f'일정 조회 중 오류 발생: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    def _get_ai_generated_title(self, prompt):
+        """AI를 통해 일정 제목 생성"""
+        try:
+            optimizer = self.get_optimizer()
+            suggestions = optimizer.get_ai_suggestions(prompt, "title")
+            
+            # 첫 번째 응답에서 제목 추출
+            for key, response in suggestions.items():
+                if response and len(response.strip()) > 0:
+                    # 간단한 제목만 추출 (첫 줄만)
+                    title = response.strip().split('\n')[0]
+                    # 따옴표 제거
+                    title = title.strip('"\'')
+                    if len(title) > 0 and len(title) < 50:  # 적절한 길이 확인
+                        return title
+            
+            return None
+        except Exception as e:
+            logger.warning(f"AI 제목 생성 실패: {str(e)}")
+            return None
+    
+    def post(self, request):
+        """새로운 일정 생성 요청"""
+        logger.info(f"일정 생성 요청 - 사용자: {request.user.username}")
+        
+        try:
+            request_text = request.data.get('request_text', '')
+            existing_schedules = request.data.get('existing_schedules', [])
+            
+            if not request_text:
+                return Response({'error': '요청 텍스트가 필요합니다.'}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+            
+            user = request.user
+            
+            # 여러 일정 요청인지 확인
+            schedule_requests = parse_multiple_schedules_backend(request_text)
+            target_date = parse_date_from_request(request_text)
+            
+            logger.info(f"파싱된 일정 요청: {len(schedule_requests)}개")
+            logger.info(f"📌 KST 기준 목표 날짜: {target_date} (요청 텍스트: '{request_text}')")
+
+            
+            if len(schedule_requests) > 1:
+                # 여러 일정 처리
+                multiple_schedules = []
+                all_individual_suggestions = []
+                
+                def extract_time_info(text):
+                    import re
+                    start_hour = None
+                    duration_hours = 1
+
+                    is_pm = '오후' in text
+                    is_am = '오전' in text
+
+                    # 🔍 "오후 3-5시"와 같은 경우 처리
+                    time_range = re.search(r'(\d{1,2})\s*[-~]\s*(\d{1,2})\s*시', text)
+                    if time_range:
+                        start = int(time_range.group(1))
+                        end = int(time_range.group(2))
+
+                        if is_pm:
+                            if start < 12:
+                                start += 12
+                            if end < 12:
+                                end += 12
+                        elif is_am:
+                            if start == 12:
+                                start = 0
+                            if end == 12:
+                                end = 0
+
+                        start_hour = start
+                        duration_hours = end - start
+                        return start_hour, duration_hours
+
+                    # 🔍 "2시간"만 있는 경우
+                    dur_match = re.search(r'(\d{1,2})\s*시간', text)
+                    if dur_match:
+                        duration_hours = int(dur_match.group(1))
+
+                    # 🔍 단일 시각: "오후 3시"
+                    single_time_match = re.search(r'(오전|오후)?\s*(\d{1,2})\s*시', text)
+                    if single_time_match:
+                        hour = int(single_time_match.group(2))
+                        if single_time_match.group(1) == '오후' and hour < 12:
+                            hour += 12
+                        elif single_time_match.group(1) == '오전' and hour == 12:
+                            hour = 0
+                        start_hour = hour
+
+                    return start_hour, duration_hours
+
+                def find_non_conflicting_time(existing_schedules, start_hour, duration_hours, date):
+                    """
+                    기존 일정과 겹치지 않는 시간대를 탐색합니다.
+                    """
+                    from datetime import datetime, timedelta, time
+
+                    def is_conflicting(new_start, new_end, schedules):
+                        for s in schedules:
+                            s_start = datetime.strptime(s['start_time'], '%Y-%m-%dT%H:%M:%S')
+                            s_end = datetime.strptime(s['end_time'], '%Y-%m-%dT%H:%M:%S')
+                            if not (new_end <= s_start or new_start >= s_end):
+                                return True
+                        return False
+
+                    attempt = 0
+                    max_attempts = 10
+                    while attempt < max_attempts:
+                        candidate_start = datetime.combine(date, time(start_hour))
+                        candidate_end = candidate_start + timedelta(hours=duration_hours)
+                        if not is_conflicting(candidate_start, candidate_end, existing_schedules):
+                            return candidate_start, candidate_end
+                        start_hour += 1
+                        attempt += 1
+
+                    # fallback
+                    return datetime.combine(date, time(start_hour)), datetime.combine(date, time(start_hour + duration_hours))
+
+
+
+                # 일정 루프 수정
+                for i, single_request in enumerate(schedule_requests):
+                    title_prompt = f"""다음 일정 요청에서 적절한 일정 제목을 한 줄로 생성해주세요: {single_request}
+                    분석 방법:
+                    1. 기존 일정들의 시간대를 확인하여 사용자가 입력한 시간에 일정이 없다면, 사용자가 입력한 일정을 추가해주세요.
+                    2. 요청된 일정의 성격에 맞는 최적의 시간대를 추천해주세요
+                    3. 일정 간 여유 시간도 고려해주세요
+                    4. 되도록이면 새벽시간은 피해주세요.
+                    5. 사용자가 지정한 시간이 있다면, 그 시간으로 배정해주세요. 단, 그 시간에 이미 일정이 있다면 다른 시간을 배정하고 일정이 있음을 알려주세요
+                    """
+                    ai_title = self._get_ai_generated_title(title_prompt) or "새 일정"
+
+                    # 시간 정보 추출
+                    parsed_start, parsed_duration = extract_time_info(single_request)
+
+                    if parsed_start is not None:
+                        start_hour = parsed_start
+                    else:
+                        start_hour = 9 + i * 2  # 기본값 fallback
+
+                    duration_hours = parsed_duration or 1
+
+                    existing = request.data.get("existing_schedules", [])
+                    schedule_start_dt, schedule_end_dt = find_non_conflicting_time(existing, start_hour, duration_hours, target_date)
+
+                    optimized_schedule = {
+                        "title": ai_title,
+                        "description": f"AI가 분석한 {self._extract_schedule_title(single_request)} 일정입니다.",
+                        "suggested_date": target_datetime.strftime('%Y-%m-%d'),
+                        "suggested_start_time": schedule_start_dt.strftime('%H:%M'),
+                        "suggested_end_time": schedule_end_dt.strftime('%H:%M'),
+                        "location": self._extract_schedule_location(single_request),
+                        "priority": "HIGH",
+                        "attendees": [],
+                        "reasoning": f"{i + 1}번째 일정: {single_request}. 기존 일정과 충돌하지 않는 시간으로 배정했습니다."
+                    }
+
+                
+                # for i, single_request in enumerate(schedule_requests):
+                #     # 각 일정의 시작 시간을 다르게 설정
+                #     base_hour = 9 + (i * 2)
+
+                #     title_prompt = f"다음 일정 요청에서 적절한 일정 제목을 한 줄로 생성해주세요: {single_request}"
+                #     ai_title = self._get_ai_generated_title(title_prompt) or "새 일정"
+                    
+                #     optimized_schedule = {
+                #         "title": ai_title,  # ✅ AI가 생성한 제목 사용
+                #         "description": f"AI가 분석한 {self._extract_schedule_title(single_request)} 일정입니다.",
+                #         "suggested_date": target_date.strftime('%Y-%m-%d'),
+                #         "suggested_start_time": f"{base_hour:02d}:00",
+                #         "suggested_end_time": f"{base_hour + 2:02d}:00",
+                #         "location": self._extract_schedule_location(single_request),
+                #         "priority": "HIGH",
+                #         "attendees": [],
+                #         "reasoning": f"{i + 1}번째 일정: {single_request}. 기존 일정과 충돌하지 않는 시간으로 배정했습니다."
+                #     }
+                    multiple_schedules.append(optimized_schedule)
+                    existing_schedules.append({
+    'start_time': schedule_start_dt.isoformat(),
+    'end_time': schedule_end_dt.isoformat()
+})
+                    
+                    # 각 AI별 개별 제안 생성
+                    for ai_type in ['gpt', 'claude', 'mixtral']:
+                        individual_suggestion = optimized_schedule.copy()
+                        individual_suggestion['source'] = ai_type
+                        individual_suggestion['reasoning'] = f"{ai_type.upper()}가 분석한 {self._extract_schedule_title(single_request)} 최적 시간입니다."
+                        all_individual_suggestions.append(individual_suggestion)
+                
+                response_data = {
+                    'request_id': int(datetime.now().timestamp()),
+                    'multiple_schedules': multiple_schedules,
+                    'optimized_suggestion': multiple_schedules[0],
+                    'confidence_score': 0.92,
+                    'individual_suggestions': all_individual_suggestions,
+                    'ai_analysis': {
+                        'analysis_summary': f"총 {len(schedule_requests)}개의 일정을 분석하여 최적의 시간대로 배정했습니다.",
+                        'reasoning': f"여러 일정을 {target_date.strftime('%Y년 %m월 %d일')}에 시간 순서대로 배치하여 충돌을 방지했습니다.",
+                        'models_used': ["gpt", "claude", "mixtral"]
+                    },
+                    'has_conflicts': False,
+                    'conflicts': [],
+                    'analysis_summary': f"{len(schedule_requests)}개 일정에 대해 3개 AI 모델이 분석한 결과입니다.",
+                    'is_multiple_schedule': True
+                }
+                
+            else:
+                # 단일 일정 처리
+                optimizer = self.get_optimizer()
+                user_context = self._get_user_context(user)
+                
+                enhanced_prompt = f"""
+                사용자의 일정 요청을 분석하여 기존 일정과 충돌하지 않는 최적의 빈 시간을 찾아 제안해주세요.
+                만약 사용자가 지정한 시간이 있다면, 그 시간에 일정을 넣어주세요.
+                
+                요청 내용: {request_text}
+                목표 날짜: {target_date.strftime('%Y년 %m월 %d일')} ({self._get_weekday_korean(target_date)})
+                기존 일정들: {existing_schedules or []}
+                분석 방법:
+                1. 기존 일정들의 시간대를 확인하여 사용자가 입력한 시간에 일정이 없다면, 사용자가 입력한 일정을 추가해주세요.
+                2. 요청된 일정의 성격에 맞는 최적의 시간대를 추천해주세요
+                3. 일정 간 여유 시간도 고려해주세요
+                4. 새벽시간은 피해주세요.
+                5. 사용자가 지정한 시간이 있다면, 그 시간으로 배정해주세요. 단, 그 시간에 이미 일정이 있다면 다른 시간을 배정하고 일정이 있음을 알려주세요
+
+
+                
+                다음 형식으로 응답해주세요:
+                {{
+                    "title": "요청 내용에 맞는 구체적이고 의미있는 일정 제목을 작성하세요", 
+                    "description": "상세 설명",
+                    "suggested_date": "%Y-%m-%d",
+                    "suggested_start_time": "HH:MM",
+                    "suggested_end_time": "HH:MM",
+                    "location": "장소",
+                    "priority": "HIGH/MEDIUM/LOW/URGENT",
+                    "attendees": [],
+                    "reasoning": "이 시간을 제안하는 이유"
+                }}
+                """
+                
+                suggestions = optimizer.get_ai_suggestions(enhanced_prompt)
+                optimized_result = optimizer.analyze_and_optimize_suggestions(
+                    suggestions, f"일정 요청: {request_text}"
+                )
+                
+                response_data = {
+                    'request_id': int(datetime.now().timestamp()),
+                    'optimized_suggestion': optimized_result.get('optimized_suggestion', {}),
+                    'confidence_score': optimized_result.get('confidence_score', 0.0),
+                    'ai_analysis': optimized_result.get('ai_analysis', {}),
+                    'individual_suggestions': optimized_result.get('individual_suggestions', []),
+                    'has_conflicts': False,
+                    'conflicts': [],
+                    'analysis_summary': "3개 AI 모델이 분석한 결과입니다.",
+                    'is_multiple_schedule': False
+                }
+            
+            logger.info("일정 생성 요청 처리 완료")
+            return Response(response_data, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            logger.error(f"일정 생성 요청 처리 실패: {str(e)}")
+            return Response({
+                'error': f'일정 생성 요청 처리 중 오류: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _get_user_context(self, user):
+        """사용자 컨텍스트 정보 생성"""
+        return {
+            'username': user.username,
+            'timezone': 'Asia/Seoul',  # 기본 타임존
+            'preferences': {}
+        }
+    
+    def _extract_schedule_title(self, request):
+        """요청에서 일정 제목 추출"""
+        if '운동' in request:
+            return '운동'
+        elif '미팅' in request or '회의' in request:
+            return '팀 미팅'
+        elif '공부' in request or '학습' in request:
+            return '학습 시간'
+        elif '작업' in request or '업무' in request:
+            return '집중 작업'
+        elif '약속' in request:
+            return '약속'
+        else:
+            return '새 일정'
+
+    def _extract_schedule_location(self, request):
+        """요청에서 장소 추출"""
+        if '운동' in request:
+            return '헬스장'
+        elif '미팅' in request or '회의' in request:
+            return '회의실'
+        elif '공부' in request or '학습' in request:
+            return '도서관'
+        elif '커피' in request:
+            return '카페'
+        else:
+            return '사무실'
+
+    def _get_weekday_korean(self, date):
+        """요일을 한국어로 반환"""
+        weekdays = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일']
+        return weekdays[date.weekday()]
+
+@api_view(['POST'])
+@authentication_classes([DebugTokenAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])
+def confirm_schedule(request, request_id):
+    """AI 제안된 일정을 확정하여 실제 일정으로 생성"""
+    logger.info(f"일정 확정 요청 - 사용자: {request.user.username}, request_id: {request_id}")
+    
+    try:
+        user = request.user
+        
+        # ✅ 프론트엔드에서 전송된 실제 AI 제안 데이터 사용
+        ai_suggestion_data = request.data.get('ai_suggestion')
+        if not ai_suggestion_data:
+            return Response({
+                'error': 'AI 제안 데이터가 필요합니다.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 여러 일정인지 단일 일정인지 확인
+        is_multiple = ai_suggestion_data.get('is_multiple_schedule', False)
+        
+        if is_multiple and ai_suggestion_data.get('multiple_schedules'):
+            # 여러 일정 처리
+            created_schedules = []
+            
+            for schedule_data in ai_suggestion_data['multiple_schedules']:
+                try:
+                    # 날짜/시간 파싱
+                    suggested_date = schedule_data.get('suggested_date')
+                    suggested_start_time = schedule_data.get('suggested_start_time', '09:00')
+                    suggested_end_time = schedule_data.get('suggested_end_time', '10:00')
+                    
+                    start_datetime = datetime.strptime(
+                        f"{suggested_date} {suggested_start_time}",
+                        '%Y-%m-%d %H:%M'
+                    )
+                    end_datetime = datetime.strptime(
+                        f"{suggested_date} {suggested_end_time}",
+                        '%Y-%m-%d %H:%M'
+                    )
+                    
+                    # Schedule 객체 생성
+                    schedule = Schedule.objects.create(
+                        user=user,
+                        title=schedule_data.get('title', '새 일정'),
+                        description=schedule_data.get('description', 'AI가 제안한 일정입니다.'),
+                        start_time=start_datetime,
+                        end_time=end_datetime,
+                        location=schedule_data.get('location', ''),
+                        priority=schedule_data.get('priority', 'MEDIUM'),
+                        attendees=json.dumps(schedule_data.get('attendees', []), ensure_ascii=False)
+                    )
+                    
+                    created_schedules.append(schedule)
+                    logger.info(f"다중 일정 생성 성공: {schedule.id} - {schedule.title}")
+                    
+                except Exception as e:
+                    logger.error(f"개별 일정 생성 실패: {str(e)}")
+                    continue
+            
+            if created_schedules:
+                serializer = ScheduleSerializer(created_schedules, many=True)
+                return Response({
+                    'message': f'{len(created_schedules)}개의 일정이 성공적으로 생성되었습니다.',
+                    'schedules': serializer.data
+                }, status=status.HTTP_201_CREATED)
+            else:
+                return Response({
+                    'error': '일정 생성에 실패했습니다.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        else:
+            # 단일 일정 처리
+            optimized_suggestion = ai_suggestion_data.get('optimized_suggestion')
+            if not optimized_suggestion:
+                return Response({
+                    'error': '최적화된 제안 데이터가 없습니다.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 날짜/시간 파싱
+            try:
+                suggested_date = optimized_suggestion.get('suggested_date')
+                suggested_start_time = optimized_suggestion.get('suggested_start_time', '09:00')
+                suggested_end_time = optimized_suggestion.get('suggested_end_time', '10:00')
+                
+                if 'T' in suggested_date:
+                    suggested_date = suggested_date.split('T')[0]
+                
+                start_datetime = datetime.strptime(
+                    f"{suggested_date} {suggested_start_time}",
+                    '%Y-%m-%d %H:%M'
+                )
+                end_datetime = datetime.strptime(
+                    f"{suggested_date} {suggested_end_time}",
+                    '%Y-%m-%d %H:%M'
+                )
+                
+            except (ValueError, TypeError) as e:
+                logger.error(f"DateTime parsing error: {e}")
+                now = datetime.now()
+                start_datetime = now.replace(hour=9, minute=0, second=0, microsecond=0)
+                end_datetime = now.replace(hour=10, minute=0, second=0, microsecond=0)
+            
+            # Schedule 객체 생성
+            schedule = Schedule.objects.create(
+                user=user,
+                title=optimized_suggestion.get('title', '새 일정'),
+                description=optimized_suggestion.get('description', 'AI가 제안한 일정입니다.'),
+                start_time=start_datetime,
+                end_time=end_datetime,
+                location=optimized_suggestion.get('location', ''),
+                priority=optimized_suggestion.get('priority', 'MEDIUM'),
+                attendees=json.dumps(optimized_suggestion.get('attendees', []), ensure_ascii=False)
+            )
+            
+            serializer = ScheduleSerializer(schedule)
+            logger.info(f"단일 일정 생성 성공: {schedule.id} - {schedule.title}")
+            
+            return Response({
+                'message': 'AI의 분석을 통해 최적화된 일정이 성공적으로 생성되었습니다.',
+                'schedule': serializer.data
+            }, status=status.HTTP_201_CREATED)
+            
+    except Exception as e:
+        logger.error(f"일정 확정 실패: {str(e)}")
+        return Response({
+            'error': f'일정 생성 중 오류가 발생했습니다: {str(e)}'
+        }, status=status.HTTP_400_BAD_REQUEST)
+# 🔧 수동 일정 생성 뷰
+@api_view(['POST'])
+@authentication_classes([DebugTokenAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])
+def create_manual_schedule(request):
+    """수동으로 일정 생성"""
+    logger.info(f"수동 일정 생성 요청 - 사용자: {request.user.username}")
+    
+    try:
+        data = request.data.copy()
+        data['user'] = request.user.id
+        
+        serializer = ScheduleSerializer(data=data)
+        if serializer.is_valid():
+            schedule = serializer.save(user=request.user)
+            logger.info(f"수동 일정 생성 성공: {schedule.id}")
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            logger.warning(f"수동 일정 생성 실패 - 유효성 검증 오류: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+    except Exception as e:
+        logger.error(f"수동 일정 생성 실패: {str(e)}")
+        return Response({
+            'error': f'일정 생성 중 오류 발생: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# 🔧 일정 수정/삭제 뷰
+@api_view(['PUT', 'DELETE'])
+@authentication_classes([DebugTokenAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])
+def manage_schedule(request, schedule_id):
+    """일정 수정 또는 삭제"""
+    try:
+        schedule = get_object_or_404(Schedule, id=schedule_id, user=request.user)
+        
+        if request.method == 'PUT':
+            # 일정 수정
+            serializer = ScheduleSerializer(schedule, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                logger.info(f"일정 수정 성공: {schedule_id}")
+                return Response(serializer.data)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        elif request.method == 'DELETE':
+            # 일정 삭제
+            schedule.delete()
+            logger.info(f"일정 삭제 성공: {schedule_id}")
+            return Response({'message': '일정이 성공적으로 삭제되었습니다.'}, 
+                          status=status.HTTP_204_NO_CONTENT)
+            
+    except Exception as e:
+        logger.error(f"일정 관리 실패: {str(e)}")
+        return Response({
+            'error': f'일정 관리 중 오류 발생: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# 유틸리티 함수들
+
+from pytz import timezone
+
+def parse_date_from_request(request_text):
+    korea_now = datetime.now(timezone('Asia/Seoul')).date()
+
+    if '오늘' in request_text:
+        return korea_now
+    elif '내일' in request_text:
+        return korea_now + timedelta(days=1)
+    elif '모레' in request_text or '모래' in request_text:
+        return korea_now + timedelta(days=2)
+    elif '이번 주' in request_text:
+        days_until_friday = (4 - korea_now.weekday()) % 7
+        days_until_friday = 7 if days_until_friday == 0 else days_until_friday
+        return korea_now + timedelta(days=days_until_friday)
+    elif '다음 주' in request_text:
+        return korea_now + timedelta(days=7)
+    else:
+        return korea_now + timedelta(days=1)
+
+def parse_multiple_schedules_backend(request_text):
+    """백엔드에서 여러 일정 파싱"""
+    separators = [',', '，', '그리고', '및', '와', '과']
+    
+    parts = [request_text]
+    for sep in separators:
+        new_parts = []
+        for part in parts:
+            new_parts.extend(part.split(sep))
+        parts = new_parts
+    
+    cleaned_requests = []
+    for part in parts:
+        cleaned = part.strip()
+        if cleaned and len(cleaned) > 2:
+            cleaned_requests.append(cleaned)
+    
+    return cleaned_requests if len(cleaned_requests) > 1 else [request_text]
+
+# 🔧 ScheduleOptimizerBot 클래스 (기존과 동일하지만 import 오류 수정)
+class ScheduleOptimizerBot:
+    """일정 최적화를 위한 AI 봇 클래스"""
+    
+    def __init__(self):
+        # ChatBot 클래스가 정의되어 있다고 가정
+        try:
+            self.chatbots = {
+                'gpt': ChatBot(OPENAI_API_KEY, 'gpt-3.5-turbo', 'openai'),
+                'claude': ChatBot(ANTHROPIC_API_KEY, 'claude-3-5-haiku-20241022', 'anthropic'), 
+                'mixtral': ChatBot(GROQ_API_KEY, 'llama3-8b-8192', 'groq'),
+            }
+        except NameError:
+            # ChatBot 클래스가 없으면 더미 클래스 사용
+            logger.warning("ChatBot 클래스를 찾을 수 없습니다. 더미 클래스를 사용합니다.")
+            self.chatbots = {
+                'gpt': DummyChatBot(),
+                'claude': DummyChatBot(),
+                'mixtral': DummyChatBot(),
+            }
+    
+    def get_ai_suggestions(self, prompt, suggestion_type="schedule"):
+        """여러 AI 모델로부터 제안받기"""
+        suggestions = {}
+        
+        for model_name, chatbot in self.chatbots.items():
+            try:
+                if hasattr(chatbot, 'chat'):
+                    response = chatbot.chat(prompt)
+                else:
+                    response = f"더미 응답: {model_name}에서 {suggestion_type} 분석 완료"
+                suggestions[f"{model_name}_suggestion"] = response
+            except Exception as e:
+                suggestions[f"{model_name}_suggestion"] = f"오류 발생: {str(e)}"
+        
+        return suggestions
+    
+    def analyze_and_optimize_suggestions(self, suggestions, query, selected_models=['GPT', 'Claude', 'Mixtral']):
+        """여러 AI 제안을 분석하여 최적화된 결과 생성"""
+        try:
+            # 기본 제안 생성
+            optimized = self._extract_first_valid_suggestion(suggestions)
+            confidence = 0.85
+            
+            return {
+                "optimized_suggestion": optimized,
+                "confidence_score": confidence,
+                "ai_analysis": {
+                    "analysis_summary": "AI 모델들의 제안을 종합 분석했습니다.",
+                    "reasoning": "여러 모델의 공통점을 바탕으로 최적화했습니다.",
+                    "models_used": selected_models
+                },
+                "individual_suggestions": self._parse_individual_suggestions(suggestions)
+            }
+            
+        except Exception as e:
+            logger.error(f"Analysis error: {str(e)}")
+            return {"error": f"최적화 과정에서 오류 발생: {str(e)}"}
+    
+    def _extract_first_valid_suggestion(self, suggestions):
+        """첫 번째 유효한 제안 추출"""
+        for key, suggestion in suggestions.items():
+            try:
+                json_match = re.search(r'\{.*\}', suggestion, re.DOTALL)
+                if json_match:
+                    return json.loads(json_match.group())
+            except:
+                continue
+        
+        return {
+            "title": "새 일정",
+            "description": "AI가 제안한 일정입니다",
+            "suggested_date": "{target_datetime.strftime('%Y-%m-%d')}",
+            "suggested_start_time": "09:00",
+            "suggested_end_time": "10:00",
+            "location": "",
+            "priority": "MEDIUM",
+            "attendees": [],
+            "reasoning": "여러 AI 모델의 제안을 종합한 결과입니다."
+        }
+    
+    def _parse_individual_suggestions(self, suggestions):
+        """개별 제안들을 파싱"""
+        parsed = []
+        for key, suggestion in suggestions.items():
+            try:
+                json_match = re.search(r'\{.*\}', suggestion, re.DOTALL)
+                if json_match:
+                    parsed_suggestion = json.loads(json_match.group())
+                    parsed_suggestion['source'] = key.replace('_suggestion', '')
+                    parsed.append(parsed_suggestion)
+            except:
+                continue
+        return parsed

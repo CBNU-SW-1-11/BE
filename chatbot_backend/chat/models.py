@@ -152,3 +152,107 @@ class OCRResult(models.Model):
         
     def __str__(self):
         return f"OCRResult {self.id} - {self.file_type}"
+
+
+# chat/models.py에 추가할 모델들
+
+from django.db import models
+from django.contrib.auth.models import AbstractUser
+from django.utils.translation import gettext_lazy as _
+from django.conf import settings
+import json
+
+# 기존 User, SocialAccount 모델은 그대로 유지...
+
+class Schedule(models.Model):
+    PRIORITY_CHOICES = [
+        ('LOW', '낮음'),
+        ('MEDIUM', '보통'),
+        ('HIGH', '높음'),
+        ('URGENT', '긴급'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('SCHEDULED', '예정'),
+        ('IN_PROGRESS', '진행중'),
+        ('COMPLETED', '완료'),
+        ('CANCELLED', '취소'),
+    ]
+    
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='schedules'
+    )
+    title = models.CharField(max_length=200, verbose_name='제목')
+    description = models.TextField(blank=True, verbose_name='설명')
+    start_time = models.DateTimeField(verbose_name='시작 시간')
+    end_time = models.DateTimeField(verbose_name='종료 시간')
+    location = models.CharField(max_length=200, blank=True, verbose_name='장소')
+    priority = models.CharField(
+        max_length=10, 
+        choices=PRIORITY_CHOICES, 
+        default='MEDIUM',
+        verbose_name='우선순위'
+    )
+    status = models.CharField(
+        max_length=15,
+        choices=STATUS_CHOICES,
+        default='SCHEDULED',
+        verbose_name='상태'
+    )
+    attendees = models.TextField(blank=True, verbose_name='참석자')  # JSON 형태로 저장
+    is_recurring = models.BooleanField(default=False, verbose_name='반복 일정')
+    recurring_pattern = models.CharField(max_length=50, blank=True, verbose_name='반복 패턴')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+
+    class Meta:
+        db_table = 'Schedule'  # 기존 테이블명이 있다면 유지
+        verbose_name = _('일정')
+        verbose_name_plural = _('일정들')
+        ordering = ['start_time']
+    
+    def __str__(self):
+        return f"{self.title} - {self.start_time.strftime('%Y-%m-%d %H:%M')}"
+
+class ScheduleRequest(models.Model):
+    """AI 모델들의 일정 제안을 저장하는 모델"""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='schedule_requests'
+    )
+    original_request = models.TextField(verbose_name='원본 요청')
+    gpt_suggestion = models.TextField(blank=True, verbose_name='GPT 제안')
+    claude_suggestion = models.TextField(blank=True, verbose_name='Claude 제안')
+    mixtral_suggestion = models.TextField(blank=True, verbose_name='Mixtral 제안')
+    optimized_suggestion = models.TextField(blank=True, verbose_name='최적화된 제안')
+    confidence_score = models.FloatField(default=0.0, verbose_name='신뢰도 점수')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'ScheduleRequest'  # 기존 테이블명이 있다면 유지
+        verbose_name = _('일정 요청')
+        verbose_name_plural = _('일정 요청들')
+        ordering = ['-created_at']
+
+class ConflictResolution(models.Model):
+    """일정 충돌 해결 방안을 저장하는 모델"""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='conflict_resolutions'
+    )
+    conflicting_schedules = models.TextField(verbose_name='충돌 일정들')  # JSON 형태
+    resolution_options = models.TextField(verbose_name='해결 방안들')  # JSON 형태
+    selected_option = models.TextField(blank=True, verbose_name='선택된 방안')
+    ai_recommendations = models.TextField(verbose_name='AI 추천 사항')  # JSON 형태
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'ConflictResolution'  # 기존 테이블명이 있다면 유지
+        verbose_name = _('충돌 해결')
+        verbose_name_plural = _('충돌 해결들')
+        ordering = ['-created_at']

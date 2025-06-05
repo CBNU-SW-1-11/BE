@@ -16,39 +16,81 @@ const handleKakaoLogin = () => {
   const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=${process.env.REACT_APP_KAKAO_CLIENT_ID}&redirect_uri=${process.env.REACT_APP_KAKAO_REDIRECT_URI}&scope=profile_nickname,account_email&prompt=login`;
   window.location.href = kakaoAuthUrl;
 };
+const googleLogin = useGoogleLogin({
+  onSuccess: async (codeResponse) => {
+    setLoading(true);
+    try {
+      const backendResponse = await fetch('http://localhost:8000/api/auth/google/callback/', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${codeResponse.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
 
-  const googleLogin = useGoogleLogin({
-    onSuccess: async (codeResponse) => {
-      setLoading(true);
-      try {
-        const backendResponse = await fetch('http://localhost:8000/api/auth/google/callback/', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${codeResponse.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-        });
-
-        if (!backendResponse.ok) {
-          const errorData = await backendResponse.json();
-          throw new Error(errorData.error || '로그인 실패');
-        }
-
-        const data = await backendResponse.json();
-        dispatch(loginSuccess(data.user));
-      } catch (error) {
-        console.error('로그인 에러:', error);
-        dispatch(loginFailure(error.message));
-      } finally {
-        setLoading(false);
+      if (!backendResponse.ok) {
+        const errorData = await backendResponse.json();
+        throw new Error(errorData.error || '로그인 실패');
       }
-    },
-    onError: (error) => {
-      console.error('로그인 실패:', error);
-      dispatch(loginFailure('구글 로그인 실패'));
-    },
-  });
+
+      const data = await backendResponse.json();
+      
+      // 🔧 토큰 저장 추가
+      if (data.token) {
+        localStorage.setItem('access_token', data.token);
+        localStorage.setItem('authToken', data.token);
+      }
+      
+      dispatch(loginSuccess(data.user));
+      
+      // 🔧 로그인 성공 후 리다이렉트
+      navigate('/schedule'); // 또는 원하는 페이지로
+      
+    } catch (error) {
+      console.error('로그인 에러:', error);
+      dispatch(loginFailure(error.message));
+    } finally {
+      setLoading(false);
+    }
+  },
+  onError: (error) => {
+    console.error('로그인 실패:', error);
+    dispatch(loginFailure('구글 로그인 실패'));
+  },
+});
+  // const googleLogin = useGoogleLogin({
+  //   onSuccess: async (codeResponse) => {
+  //     setLoading(true);
+  //     try {
+  //       const backendResponse = await fetch('http://localhost:8000/api/auth/google/callback/', {
+  //         method: 'GET',
+  //         headers: {
+  //           'Authorization': `Bearer ${codeResponse.access_token}`,
+  //           'Content-Type': 'application/json',
+  //         },
+  //         credentials: 'include',
+  //       });
+
+  //       if (!backendResponse.ok) {
+  //         const errorData = await backendResponse.json();
+  //         throw new Error(errorData.error || '로그인 실패');
+  //       }
+
+  //       const data = await backendResponse.json();
+  //       dispatch(loginSuccess(data.user));
+  //     } catch (error) {
+  //       console.error('로그인 에러:', error);
+  //       dispatch(loginFailure(error.message));
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   },
+  //   onError: (error) => {
+  //     console.error('로그인 실패:', error);
+  //     dispatch(loginFailure('구글 로그인 실패'));
+  //   },
+  // });
 
   const handleChatClick = () => {
     navigate('/chat');
