@@ -2,10 +2,13 @@ import os
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+OPENAI_API_KEY = "***REMOVED***"
 
-OPENAI_API_KEY = "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"
+# OPENAI_API_KEY = "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"
 ANTHROPIC_API_KEY = "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"
-GROQ_API_KEY = "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"
+# GROQ_API_KEY = "***REMOVED***"
+
+GROQ_API_KEY = "***REMOVED***"
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent

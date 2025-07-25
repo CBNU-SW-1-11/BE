@@ -1,10 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environment
 venv/
-chatbot_backend/chat/__pycache__/
-chatbot_backend/chat/__pycache__/
 
-.env
+# macOS
+.DS_Store
 
+# Node
 node_modules/
-
-.env
-
+npm-debug.log*
+package-lock.json

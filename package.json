@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "lucide-react": "^0.471.0",
-    "react-kakao-login": "^2.1.1"
-  }
-}

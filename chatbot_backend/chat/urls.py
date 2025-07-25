@@ -1,6 +1,6 @@
 from django import views
 from django.urls import path
-from .views import ChatView, ScheduleManagementView, confirm_schedule
+from .views import ChatView, ProcessFileView, ScheduleManagementView, confirm_schedule
 from django.urls import path, include
 
 from django.urls import path
@@ -31,7 +31,7 @@ urlpatterns = [
     # path('analyze-image/', ImageAnalysisView.as_view(), name='analyze_image'),
 
     path('api/auth/', include('dj_rest_auth.urls')),
-    # path('ocr/process-file/', ProcessFileView.as_view(), name='process-file'),
+    path('ocr/process-file/', ProcessFileView.as_view(), name='process-file'),
     # path('ocr/results/<int:pk>/', OCRResultDetailView.as_view(), name='ocr-result-detail'),
     # path('ocr/results/', OCRResultListView.as_view(), name='ocr-result-list'),
     

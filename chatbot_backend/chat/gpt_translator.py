@@ -668,7 +668,8 @@ logger = logging.getLogger(__name__)
 
 class GPTTranslator:
     def __init__(self, api_key: str = None, model: str = "gpt-3.5-turbo"):
-        self.api_key = api_key or "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"
+        self.api_key = api_key or "***REMOVED***"
+
         self.model = model
 
         if not self.api_key:

@@ -938,7 +938,8 @@ class ChatView(APIView):
 # API 키 설정
 OPENAI_API_KEY = "***REMOVED***"
 ANTHROPIC_API_KEY = "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"
-GROQ_API_KEY = "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"
+GROQ_API_KEY = "***REMOVED***"
+
 
 chatbots = {
     'gpt': ChatBot(OPENAI_API_KEY, 'gpt-3.5-turbo', 'openai'),
@@ -2699,7 +2700,8 @@ from .serializers import (
 # # 기존 ChatBot 클래스는 그대로 유지...
 # OPENAI_API_KEY = "***REMOVED***"
 # ANTHROPIC_API_KEY = "***REMOVED***"
-# GROQ_API_KEY = "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"
+# GROQ_API_KEY = "***REMOVED***"
+
 
 # chatbots = {
 #     'gpt': ChatBot(OPENAI_API_KEY, 'gpt-3.5-turbo', 'openai'),
@@ -3501,7 +3503,8 @@ logger = logging.getLogger(__name__)
 # 기존 ChatBot 클래스와 API 키들은 그대로 유지...
 OPENAI_API_KEY = "***REMOVED***"
 ANTHROPIC_API_KEY = "***REMOVED***"
-GROQ_API_KEY = "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"
+GROQ_API_KEY = "***REMOVED***"
+
 
 # 🔧 토큰 디버깅을 위한 커스텀 인증 클래스
 class DebugTokenAuthentication(TokenAuthentication):
