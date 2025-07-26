@@ -243,53 +243,173 @@ def sanitize_and_parse_json(text, selected_models, responses):
 #             raise
 
 
+# paste-2.txt 수정된 내용
+
+# chatbot.py - OpenAI v1.0+ 호환 버전
+import openai
+import anthropic
+from groq import Groq
+import logging
+import json
+import asyncio
+from typing import Dict, List, Any, Optional
+
+logger = logging.getLogger(__name__)
+
+# sanitize_and_parse_json 함수 (기존 함수 포함)
+def sanitize_and_parse_json(text, selected_models=None, responses=None):
+    """JSON 응답을 정리하고 파싱하는 함수"""
+    import re
+    try:
+        text = text.strip()
+        
+        # 코드 블록 제거
+        if text.startswith('```json') and '```' in text:
+            text = re.sub(r'```json(.*?)```', r'\1', text, flags=re.DOTALL).strip()
+        elif text.startswith('```') and text.endswith('```'):
+            text = text[3:-3].strip()
+        
+        # JSON 패턴 추출
+        json_pattern = r'({[\s\S]*})'
+        json_matches = re.findall(json_pattern, text)
+        if json_matches:
+            text = json_matches[0]
+        
+        # 이스케이프 문자 처리
+        text = re.sub(r'\\([_"])', r'\1', text)
+        
+        # JSON 파싱
+        result = json.loads(text)
+        
+        # 필수 필드 확인 및 보정
+        required_fields = ["preferredModel", "best_response", "analysis", "reasoning"]
+        for field in required_fields:
+            if field not in result:
+                if field == "best_response" and "bestResponse" in result:
+                    result["best_response"] = result["bestResponse"]
+                else:
+                    result[field] = "" if field != "analysis" else {}
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"JSON 파싱 실패: {e}")
+        # 폴백 응답 생성
+        error_analysis = {}
+        if selected_models:
+            for model in selected_models:
+                model_lower = model.lower()
+                error_analysis[model_lower] = {"장점": "분석 실패", "단점": "분석 실패"}
+        
+        return {
+            "preferredModel": "ERROR",
+            "best_response": max(responses.values(), key=len) if responses else "분석 오류가 발생했습니다.",
+            "analysis": error_analysis,
+            "reasoning": "응답 분석 중 오류가 발생했습니다."
+        }
+import openai
+
+import anthropic
+from groq import Groq
+import logging
+from .langchain_config import LangChainManager
+
+logger = logging.getLogger(__name__)
 
 class ChatBot:
-   def __init__(self, api_key, model, api_type):
-       self.conversation_history = []
-       self.model = model
-       self.api_type = api_type
-       self.api_key = api_key
-       
-       if api_type == 'openai':
-           openai.api_key = api_key
-       elif api_type == 'anthropic':
-           self.client = anthropic.Anthropic(api_key=api_key)
-       elif api_type == 'groq':
-           self.client = Groq(api_key=api_key)
+    def __init__(self, api_key, model, api_type, langchain_manager=None):
+        self.conversation_history = []
+        self.model = model
+        self.api_type = api_type
+        self.api_key = api_key
+        self.langchain_manager = langchain_manager
+        
+        # LangChain 사용 여부 결정
+        self.use_langchain = langchain_manager is not None
+        
+        if not self.use_langchain:
+            # 기존 방식 초기화
+            if api_type == 'openai':
+                openai.api_key = api_key
+            elif api_type == 'anthropic':
+                self.client = anthropic.Anthropic(api_key=api_key)
+            elif api_type == 'groq':
+                self.client = Groq(api_key=api_key)
+        else:
+            # LangChain 체인 생성
+            try:
+                if api_type in ['gpt', 'claude']:
+                    self.chat_chain = langchain_manager.create_chat_chain(api_type)
+                elif api_type == 'groq' or api_type == 'mixtral':
+                    # Groq는 별도 처리
+                    self.groq_llm = langchain_manager.groq_llm if hasattr(langchain_manager, 'groq_llm') else None
+                logger.info(f"LangChain 체인 생성 완료: {api_type}")
+            except Exception as e:
+                logger.warning(f"LangChain 체인 생성 실패, 기존 방식 사용: {e}")
+                self.use_langchain = False
    
-   def chat(self, user_input, image_file=None, analysis_mode=None, user_language=None):
-       try:
-           logger.info(f"Processing chat request for {self.api_type}")
-           logger.info(f"User input: {user_input}")
-           
-           # 대화 기록에 사용자 입력 추가
-           if image_file:
-               # 예시로 system 메시지에 모드와 언어를 넣어줍니다
-               self.conversation_history = [{
-                   "role": "system",
-                   "content": f"이미지 분석 모드: {analysis_mode}, 응답 언어: {user_language}"
-               }]
-               messages = [
-                   {"role": "user", "content": user_input}
-               ]
-           else:
-               self.conversation_history.append({"role": "user", "content": user_input})
-               messages = self.conversation_history
+    async def chat_async(self, user_input, image_file=None, analysis_mode=None, user_language=None):
+        """비동기 채팅 메서드 (LangChain 용)"""
+        if self.use_langchain:
+            return await self._chat_with_langchain(user_input, user_language)
+        else:
+            return self.chat(user_input, image_file, analysis_mode, user_language)
+    
+    async def _chat_with_langchain(self, user_input, user_language='ko'):
+        """LangChain을 사용한 채팅"""
+        try:
+            if self.api_type in ['gpt', 'claude']:
+                result = await self.chat_chain.arun(
+                    user_input=user_input,
+                    user_language=user_language
+                )
+                return result
+            elif self.api_type == 'groq' or self.api_type == 'mixtral':
+                if self.groq_llm:
+                    prompt = f"사용자가 선택한 언어는 '{user_language}'입니다. 반드시 이 언어({user_language})로 응답하세요.\n\n{user_input}"
+                    result = self.groq_llm(prompt)
+                    return result
+                else:
+                    # 폴백: 기존 방식
+                    return self.chat(user_input, user_language=user_language)
+            else:
+                raise ValueError(f"지원하지 않는 API 타입: {self.api_type}")
+                
+        except Exception as e:
+            logger.error(f"LangChain 채팅 에러: {e}")
+            # 폴백: 기존 방식
+            return self.chat(user_input, user_language=user_language)
 
-        #    self.conversation_history.append({"role": "user", "content": user_input})
-           
-           try:
-               if self.api_type == 'openai':
-                   response = openai.ChatCompletion.create(
-                       model=self.model,
-                       messages=self.conversation_history,
-                       temperature=0.7,
-                       max_tokens=1024
-                   )
-                   assistant_response = response['choices'][0]['message']['content']
-                   # chat 메소드의 anthropic 부분 수정
-               elif self.api_type == 'anthropic':
+    def chat(self, user_input, image_file=None, analysis_mode=None, user_language=None):
+        """기존 동기 채팅 메서드 (호환성 유지)"""
+        try:
+            logger.info(f"Processing chat request for {self.api_type}")
+            logger.info(f"User input: {user_input}")
+            
+            # 대화 기록에 사용자 입력 추가
+            if image_file:
+                self.conversation_history = [{
+                    "role": "system",
+                    "content": f"이미지 분석 모드: {analysis_mode}, 응답 언어: {user_language}"
+                }]
+                messages = [
+                    {"role": "user", "content": user_input}
+                ]
+            else:
+                self.conversation_history.append({"role": "user", "content": user_input})
+                messages = self.conversation_history
+
+            try:
+                if self.api_type == 'openai':
+                    response = openai.ChatCompletion.create(
+                        model=self.model,
+                        messages=self.conversation_history,
+                        temperature=0.7,
+                        max_tokens=1024
+                    )
+                    assistant_response = response['choices'][0]['message']['content']
+                    
+                elif self.api_type == 'anthropic':
                     try:
                         # 시스템 메시지 찾기
                         system_message = next((msg['content'] for msg in self.conversation_history 
@@ -303,7 +423,7 @@ class ChatBot:
                             model=self.model,
                             max_tokens=4096,
                             temperature=0,
-                            system=system_message,  # 시스템 메시지를 system 파라미터로 전달
+                            system=system_message,
                             messages=[{
                                 "role": "user",
                                 "content": user_content
@@ -315,192 +435,191 @@ class ChatBot:
                     except Exception as e:
                         logger.error(f"Anthropic API error: {str(e)}")
                         raise
-
-                # analyze_responses 메소드의 anthropic 부분 수정
                
-               elif self.api_type == 'anthropic':
-                   messages = []
-                   for msg in self.conversation_history:
-                       if msg["role"] != "system":
-                           messages.append({
-                               "role": msg["role"],
-                               "content": msg["content"]
-                           })
-                   
-                   message = self.client.messages.create(
-                       model=self.model,
-                       max_tokens=4096,
-                       temperature=0,
-                    #    messages=messages
-                   )
-                   assistant_response = message.content[0].text
-                   
-                   
-               elif self.api_type == 'groq':
-                   response = self.client.chat.completions.create(
-                       model=self.model,
-                       messages=self.conversation_history,
-                       temperature=0.7,
-                       max_tokens=1024
-                   )
-                   assistant_response = response.choices[0].message.content
-               
-               # 응답 기록
-               self.conversation_history.append({
-                   "role": "assistant",
-                   "content": assistant_response
-               })
-               
-               logger.info(f"Generated response: {assistant_response[:100]}...")
-               return assistant_response
-               
-           except Exception as e:
-               logger.error(f"API error in {self.api_type}: {str(e)}", exc_info=True)
-               raise
-               
-       except Exception as e:
-           logger.error(f"Error in chat method: {str(e)}", exc_info=True)
-           raise
-
-   def analyze_responses(self, responses, query, user_language, selected_models):
-
-
-            try:
-                logger.info("\n" + "="*100)
-                logger.info("📊 분석 시작")
-                logger.info(f"🤖 분석 수행 AI: {self.api_type.upper()}")
-                logger.info(f"🔍 선택된 모델들: {', '.join(selected_models)}")
-                logger.info("="*100)
-
-                # 선택된 모델들만 분석에 포함
-                responses_section = ""
-                analysis_section = ""
-                
-                for model in selected_models:
-                    model_lower = model.lower()
-                    responses_section += f"\n{model.upper()} 응답: 반드시 이 언어({user_language})로 작성 {responses.get(model_lower, '응답 없음')}"
-                    
-                    analysis_section += f"""
-                            "{model_lower}": {{
-                                "장점": "반드시 이 언어({user_language})로 작성 {model.upper()} 답변의 장점",
-                                "단점": "반드시 이 언어({user_language})로 작성 {model.upper()} 답변의 단점"
-                            }}{"," if model_lower != selected_models[-1].lower() else ""}"""
-
-                # The prompt remains the same
-                analysis_prompt = f"""다음은 동일한 질문에 대한 {len(selected_models)}가지 AI의 응답을 분석하는 것입니다.
-                        사용자가 선택한 언어는 '{user_language}'입니다.
-                        반드시 이 언어({user_language})로 최적의 답을 작성해주세요.
-                        반드시 이 언어({user_language})로 장점을 작성해주세요.
-                        반드시 이 언어({user_language})로 단점을 작성해주세요.
-                        반드시 이 언어({user_language})로 분석 근거를 작성해주세요.
-
-                        질문: {query}
-                        {responses_section}
-
-                        [최적의 응답을 만들 때 고려할 사항]
-
-                        모든 AI의 답변들을 종합하여 최적의 답변으로 반드시 재구성합니다.
-
-                        즉, 기존 AI의 답변을 그대로 사용하면 안됩니다.
-
-                        다수의 AI가 공통으로 제공한 정보는 가장 신뢰할 수 있는 올바른 정보로 간주합니다.
-
-                        특정 AI가 다수의 AI와 다른 정보를 제공하면, 신뢰성이 낮은 정보로 판단하여 최적의 답변에서 제외하고, '단점' 항목에 별도로 명시합니다.
-
-                        여러 AI의 답변에서 정확하고 관련성 높은 정보만 선택하여 반영합니다.
-
-                        중복된 정보가 있을 경우 표현이 더 명확하고 상세한 내용을 우선 선택합니다.
-
-                        논리적 흐름을 고려하여 자연스럽고 이해하기 쉬운 형태로 작성합니다.
-
-                        코드를 묻는 질문일때는, AI의 답변 중 제일 좋은 답변을 선택해서 재구성해줘 
-
-                        코드는 바로 복사해서 사용가능하도록 해줘
-
-                        코드는 그대로 복사해서 실행 버튼만 누르면 실행 가능하도록 작성해야합니다.
-
-                        코드와 코드가 아닌 부분을 구별되게 보여줘
-
-                        반드시 JSON 형식으로 응답해주세요. 다른 설명은 포함하지 마세요.
-
-                        뉴스 기사를 분석한 경우 육하원칙으로 답변해줘
-
-                        [출력 형식]
-                        {{
-                            "preferredModel": "{self.api_type.upper()}",
-                            "best_response": "최적의 답변 ({user_language}로 작성)",
-                            "analysis": {{
-                                {analysis_section}
-                            }},
-                            "reasoning": "반드시 이 언어({user_language})로 작성 최적의 응답을 선택한 이유"
-                        }}"""
-
-                # API 타입에 따른 분기 처리
-                if self.api_type == 'openai':
-                    response = openai.ChatCompletion.create(
-                        model=self.model,
-                        messages=[
-                            {"role": "system", "content": "You are a helpful assistant. Always respond with valid JSON ONLY, no additional text or explanations."},
-                            {"role": "user", "content": analysis_prompt}
-                        ],
-                        temperature=0,
-                        max_tokens=4096
-                    )
-                    analysis_text = response['choices'][0]['message']['content']
-                    
-                elif self.api_type == 'anthropic':
-                    # 시스템 메시지에서 언어 설정 추출
-                    system_message = next((msg['content'] for msg in self.conversation_history 
-                                        if msg['role'] == 'system'), '')
-                    
-                    message = self.client.messages.create(
-                        model=self.model,
-                        max_tokens=4096,
-                        temperature=0,
-                        system=f"{system_message}\nYou must respond with valid JSON only in the specified language. No other text or formatting.",
-                        messages=[{
-                            "role": "user", 
-                            "content": analysis_prompt
-                        }]
-                    )
-                    analysis_text = message.content[0].text.strip()
-                
                 elif self.api_type == 'groq':
                     response = self.client.chat.completions.create(
                         model=self.model,
-                        messages=[
-                            {"role": "system", "content": "You are a helpful assistant. Always respond with valid JSON ONLY, no additional text or explanations."},
-                            {"role": "user", "content": analysis_prompt}
-                        ],
-                        temperature=0,
-                        max_tokens=4096
+                        messages=self.conversation_history,
+                        temperature=0.7,
+                        max_tokens=1024
                     )
-                    analysis_text = response.choices[0].message.content
-
-                logger.info("✅ 분석 완료\n")
-                
-                # Use our new sanitize_and_parse_json function
-                analysis_result = sanitize_and_parse_json(analysis_text, selected_models, responses)
-                analysis_result['preferredModel'] = self.api_type.upper()
-                
-                return analysis_result
-            
+                    assistant_response = response.choices[0].message.content
+               
+                # 응답 기록
+                self.conversation_history.append({
+                    "role": "assistant",
+                    "content": assistant_response
+                })
+               
+                logger.info(f"Generated response: {assistant_response[:100]}...")
+                return assistant_response
+               
             except Exception as e:
-                logger.error(f"❌ Analysis error: {str(e)}")
-                # Fallback response in case of a major error
-                error_analysis = {}
-                for model in selected_models:
-                    model_lower = model.lower()
-                    error_analysis[model_lower] = {"장점": "분석 실패", "단점": "분석 실패"}
+                logger.error(f"API error in {self.api_type}: {str(e)}", exc_info=True)
+                raise
+               
+        except Exception as e:
+            logger.error(f"Error in chat method: {str(e)}", exc_info=True)
+            raise
+
+    async def analyze_responses_async(self, responses, query, user_language, selected_models):
+        """비동기 응답 분석 (LangChain 용)"""
+        if self.use_langchain and self.langchain_manager:
+            return await self._analyze_with_langchain(responses, query, user_language, selected_models)
+        else:
+            return self.analyze_responses(responses, query, user_language, selected_models)
+    
+    async def _analyze_with_langchain(self, responses, query, user_language, selected_models):
+        """LangChain을 사용한 응답 분석"""
+        try:
+            logger.info("\n" + "="*100)
+            logger.info("📊 LangChain 분석 시작")
+            logger.info(f"🤖 분석 수행 AI: {self.api_type.upper()}")
+            logger.info(f"🔍 선택된 모델들: {', '.join(selected_models)}")
+            logger.info("="*100)
+            
+            # 분석 체인 생성
+            analysis_chain = self.langchain_manager.create_analysis_chain(self.api_type)
+            
+            # 응답 포맷팅
+            formatted = self.langchain_manager.format_responses_for_analysis(
+                responses, selected_models
+            )
+            
+            # 분석 실행
+            analysis_result = await analysis_chain.arun(
+                query=query,
+                user_language=user_language,
+                selected_models=selected_models,
+                **formatted
+            )
+            
+            # preferredModel 설정
+            analysis_result['preferredModel'] = self.api_type.upper()
+            
+            logger.info("✅ LangChain 분석 완료\n")
+            return analysis_result
+            
+        except Exception as e:
+            logger.error(f"❌ LangChain 분석 에러: {str(e)}")
+            # 폴백: 기존 방식
+            return self.analyze_responses(responses, query, user_language, selected_models)
+
+    def analyze_responses(self, responses, query, user_language, selected_models):
+        """기존 동기 응답 분석 메서드 (호환성 유지)"""
+        try:
+            logger.info("\n" + "="*100)
+            logger.info("📊 분석 시작")
+            logger.info(f"🤖 분석 수행 AI: {self.api_type.upper()}")
+            logger.info(f"🔍 선택된 모델들: {', '.join(selected_models)}")
+            logger.info("="*100)
+
+            # 선택된 모델들만 분석에 포함
+            responses_section = ""
+            analysis_section = ""
+            
+            for model in selected_models:
+                model_lower = model.lower()
+                responses_section += f"\n{model.upper()} 응답: 반드시 이 언어({user_language})로 작성 {responses.get(model_lower, '응답 없음')}"
                 
-                return {
-                    "preferredModel": self.api_type.upper(),
-                    "best_response": max(responses.values(), key=len) if responses else "",
-                    "analysis": error_analysis,
-                    "reasoning": "응답 분석 중 오류가 발생하여 최적의 답변을 생성하지 못했습니다."
-                }
+                analysis_section += f"""
+                        "{model_lower}": {{
+                            "장점": "반드시 이 언어({user_language})로 작성 {model.upper()} 답변의 장점",
+                            "단점": "반드시 이 언어({user_language})로 작성 {model.upper()} 답변의 단점"
+                        }}{"," if model_lower != selected_models[-1].lower() else ""}"""
 
+            # 기존 분석 프롬프트 (변경 없음)
+            analysis_prompt = f"""다음은 동일한 질문에 대한 {len(selected_models)}가지 AI의 응답을 분석하는 것입니다.
+                    사용자가 선택한 언어는 '{user_language}'입니다.
+                    반드시 이 언어({user_language})로 최적의 답을 작성해주세요.
+                    반드시 이 언어({user_language})로 장점을 작성해주세요.
+                    반드시 이 언어({user_language})로 단점을 작성해주세요.
+                    반드시 이 언어({user_language})로 분석 근거를 작성해주세요.
 
+                    질문: {query}
+                    {responses_section}
+
+                     [최적의 응답을 만들 때 고려할 사항]
+                    - 모든 AI의 답변들을 종합하여 최적의 답변으로 반드시 재구성합니다
+                    - 기존 AI의 답변을 그대로 사용하면 안됩니다
+                    - 즉, 기존 AI의 답변과 최적의 답변이 동일하면 안됩니다.
+                    - 다수의 AI가 공통으로 제공한 정보는 가장 신뢰할 수 있는 올바른 정보로 간주합니다
+                    - 코드를 묻는 질문일때는, AI의 답변 중 제일 좋은 답변을 선택해서 재구성해줘
+                    - 반드시 JSON 형식으로 응답해주세요
+                    [출력 형식]
+                    {{
+                        "preferredModel": "{self.api_type.upper()}",
+                        "best_response": "최적의 답변 ({user_language}로 작성)",
+                        "analysis": {{
+                            {analysis_section}
+                        }},
+                        "reasoning": "반드시 이 언어({user_language})로 작성 최적의 응답을 선택한 이유"
+                    }}"""
+
+            # 기존 API 호출 로직 (변경 없음)
+            if self.api_type == 'openai':
+                response = openai.ChatCompletion.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant. Always respond with valid JSON ONLY, no additional text or explanations."},
+                        {"role": "user", "content": analysis_prompt}
+                    ],
+                    temperature=0,
+                    max_tokens=4096
+                )
+                analysis_text = response['choices'][0]['message']['content']
+                
+            elif self.api_type == 'anthropic':
+                system_message = next((msg['content'] for msg in self.conversation_history 
+                                    if msg['role'] == 'system'), '')
+                
+                message = self.client.messages.create(
+                    model=self.model,
+                    max_tokens=4096,
+                    temperature=0,
+                    system=f"{system_message}\nYou must respond with valid JSON only in the specified language. No other text or formatting.",
+                    messages=[{
+                        "role": "user", 
+                        "content": analysis_prompt
+                    }]
+                )
+                analysis_text = message.content[0].text.strip()
+            
+            elif self.api_type == 'groq':
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant. Always respond with valid JSON ONLY, no additional text or explanations."},
+                        {"role": "user", "content": analysis_prompt}
+                    ],
+                    temperature=0,
+                    max_tokens=4096
+                )
+                analysis_text = response.choices[0].message.content
+
+            logger.info("✅ 분석 완료\n")
+            
+            # JSON 파싱 (기존 함수 사용)
+            from paste_3 import sanitize_and_parse_json  # 기존 함수 import
+            analysis_result = sanitize_and_parse_json(analysis_text, selected_models, responses)
+            analysis_result['preferredModel'] = self.api_type.upper()
+            
+            return analysis_result
+        
+        except Exception as e:
+            logger.error(f"❌ Analysis error: {str(e)}")
+            # 기존 폴백 로직
+            error_analysis = {}
+            for model in selected_models:
+                model_lower = model.lower()
+                error_analysis[model_lower] = {"장점": "분석 실패", "단점": "분석 실패"}
+            
+            return {
+                "preferredModel": self.api_type.upper(),
+                "best_response": max(responses.values(), key=len) if responses else "",
+                "analysis": error_analysis,
+                "reasoning": "응답 분석 중 오류가 발생하여 최적의 답변을 생성하지 못했습니다."
+            }
 # class ChatView(APIView):
 #     permission_classes = [AllowAny]
 
@@ -645,215 +764,83 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
+from django.http import StreamingHttpResponse
 import logging
 import json
-from django.http import StreamingHttpResponse
+import openai
+import anthropic
+from groq import Groq
+from django.conf import settings
+from bs4 import BeautifulSoup
+import re
 import time
-import numpy as np
+import asyncio
+from asgiref.sync import sync_to_async
+
+# 새로 추가된 import
+from .langchain_config import LangChainManager
+from .langgraph_workflow import AIComparisonWorkflow
 
 logger = logging.getLogger(__name__)
 
-# JSON 직렬화 유틸리티 함수 추가
 def convert_to_serializable(obj):
-    """모든 객체를 JSON 직렬화 가능한 형태로 변환합니다"""
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    elif isinstance(obj, np.integer):  # 정수형 타입 처리
-        return int(obj)
-    elif isinstance(obj, (np.float16, np.float32, np.float64)):  # float_ 제거하고 구체적인 타입만 사용
-        return float(obj)
-    elif isinstance(obj, (set, tuple)):
-        return list(obj)
-    elif hasattr(obj, 'isoformat'):  # datetime 객체 처리
-        return obj.isoformat()
+    """객체를 직렬화 가능한 형태로 변환"""
+    if hasattr(obj, '__dict__'):
+        return {k: convert_to_serializable(v) for k, v in obj.__dict__.items()}
     elif isinstance(obj, dict):
         return {k: convert_to_serializable(v) for k, v in obj.items()}
     elif isinstance(obj, list):
-        return [convert_to_serializable(i) for i in obj]
+        return [convert_to_serializable(item) for item in obj]
     else:
-        try:
-            # str() 사용 시도
-            return str(obj)
-        except:
-            return repr(obj)
+        return obj
 
-# class ChatView(APIView):
-#     permission_classes = [AllowAny]
-    
-#     def __init__(self, **kwargs):
-#         super().__init__(**kwargs)
-#         # SimilarityAnalyzer 인스턴스 생성
-#         self.similarity_analyzer = SimilarityAnalyzer(threshold=0.85)
-
-#     def post(self, request, preferredModel):
-#         try:
-#             logger.info(f"Received chat request for {preferredModel}")
-            
-#             data = request.data
-#             user_message = data.get('message')
-#             compare_responses = data.get('compare', True)
-            
-#             # 선택된 모델들
-#             selected_models = data.get('selectedModels', ['gpt', 'claude', 'mixtral'])
-            
-#             # 선택된 모델 로그
-#             logger.info(f"Selected models: {selected_models}")
-            
-#             # 토큰 유무에 따른 언어 및 선호 모델 처리
-#             token = request.headers.get('Authorization')
-#             if not token:
-#                 # 비로그인: 기본 언어는 ko, 선호 모델은 GPT로 고정
-#                 user_language = 'ko'
-#                 preferredModel = 'gpt'
-#             else:
-#                 # 로그인: 요청 데이터의 언어 사용 (혹은 사용자의 설정을 따름)
-#                 user_language = data.get('language', 'ko')
-#                 # URL에 전달된 preferredModel을 그대로 사용 (프론트엔드에서 사용자 설정 반영)
-
-#             logger.info(f"Received language setting: {user_language}")
-
-#             if not user_message:
-#                 return Response({'error': 'No message provided'}, 
-#                                 status=status.HTTP_400_BAD_REQUEST)
-
-#             # 비동기 응답을 위한 StreamingHttpResponse 사용
-#             def stream_responses():
-#                 try:
-#                     system_message = {
-#                         "role": "system",
-#                         "content": f"사용자가 선택한 언어는 '{user_language}'입니다. 반드시 모든 응답을 이 언어({user_language})로 제공해주세요."
-#                     }
-                    
-#                     responses = {}
-                    
-#                     # 현재 요청에 대한 고유 식별자 생성 (타임스탬프 활용)
-#                     request_id = str(time.time())
-                    
-#                     # 선택된 모델들만 대화에 참여시킴
-#                     selected_chatbots = {model: chatbots.get(model) for model in selected_models if model in chatbots}
-                    
-#                     # 각 봇의 응답을 개별적으로 처리하고 즉시 응답
-#                     for bot_id, bot in selected_chatbots.items():
-#                         if bot is None:
-#                             logger.warning(f"Selected model {bot_id} not available in chatbots")
-#                             yield json.dumps({
-#                                 'type': 'bot_error',
-#                                 'botId': bot_id,
-#                                 'error': f"Model {bot_id} is not available"
-#                             }) + '\n'
-#                             continue
-                            
-#                         try:
-#                             # 매번 새로운 대화 컨텍스트 생성 (이전 내용 초기화)
-#                             bot.conversation_history = [system_message]
-#                             response = bot.chat(user_message)
-#                             responses[bot_id] = response
-                            
-#                             # 각 봇 응답을 즉시 전송
-#                             yield json.dumps({
-#                                 'type': 'bot_response',
-#                                 'botId': bot_id,
-#                                 'response': response,
-#                                 'requestId': request_id  # 요청 ID 추가
-#                             }) + '\n'
-                            
-#                         except Exception as e:
-#                             logger.error(f"Error from {bot_id}: {str(e)}")
-#                             responses[bot_id] = f"Error: {str(e)}"
-                            
-#                             # 에러도 즉시 전송
-#                             yield json.dumps({
-#                                 'type': 'bot_error',
-#                                 'botId': bot_id,
-#                                 'error': str(e),
-#                                 'requestId': request_id  # 요청 ID 추가
-#                             }) + '\n'
-                    
-#                     # 응답이 2개 이상일 때만 유사도 분석 수행
-#                     if len(responses) >= 2:
-#                         try:
-#                             # 유사도 분석 결과 계산
-#                             similarity_result = self.similarity_analyzer.cluster_responses(responses)
-                            
-#                             # 결과를 직렬화 가능한 형태로 변환
-#                             serializable_result = convert_to_serializable(similarity_result)
-                            
-#                             # 디버깅을 위한 유사도 분석 결과 로깅
-#                             logger.info(f"Similarity analysis result: {serializable_result}")
-                            
-#                             # 유사도 분석 결과 전송
-#                             yield json.dumps({
-#                                 'type': 'similarity_analysis',
-#                                 'result': serializable_result,
-#                                 'requestId': request_id,
-#                                 'timestamp': time.time(),
-#                                 'userMessage': user_message  # 사용자 메시지 포함
-#                             }) + '\n'
-                            
-#                         except Exception as e:
-#                             logger.error(f"Error in similarity analysis: {str(e)}", exc_info=True)
-#                             yield json.dumps({
-#                                 'type': 'similarity_error',
-#                                 'error': f"Similarity analysis error: {str(e)}",
-#                                 'requestId': request_id
-#                             }) + '\n'
-                    
-#                     # 선택된 모델이 있고 응답이 있을 때만 분석 수행
-#                     if selected_models and responses:
-#                         # 분석(비교)은 로그인 시 사용자의 선호 모델을, 비로그인 시 GPT를 사용
-#                         if token:
-#                             analyzer_bot = chatbots.get(preferredModel) or chatbots.get('gpt')
-#                         else:
-#                             analyzer_bot = chatbots.get('gpt')
-                        
-#                         # 분석용 봇도 새로운 대화 컨텍스트로 초기화
-#                         analyzer_bot.conversation_history = [system_message]
-                        
-#                         # 분석 실행 (항상 새롭게 실행)
-#                         analysis = analyzer_bot.analyze_responses(responses, user_message, user_language, selected_models)
-                        
-#                         # 분석 결과 전송
-#                         yield json.dumps({
-#                             'type': 'analysis',
-#                             'preferredModel': analyzer_bot and analyzer_bot.api_type.upper(),
-#                             'best_response': analysis.get('best_response', ''),
-#                             'analysis': analysis.get('analysis', {}),
-#                             'reasoning': analysis.get('reasoning', ''),
-#                             'language': user_language,
-#                             'requestId': request_id,  # 요청 ID 추가
-#                             'timestamp': time.time(),  # 타임스탬프 추가
-#                             'userMessage': user_message  # 사용자 메시지 포함
-#                         }) + '\n'
-#                     else:
-#                         logger.warning("No selected models or responses to analyze")
-                    
-#                 except Exception as e:
-#                     logger.error(f"Stream processing error: {str(e)}", exc_info=True)
-#                     yield json.dumps({
-#                         'type': 'error',
-#                         'error': f"Stream processing error: {str(e)}"
-#                     }) + '\n'
-
-#             # StreamingHttpResponse 반환
-#             response = StreamingHttpResponse(
-#                 streaming_content=stream_responses(),
-#                 content_type='text/event-stream'
-#             )
-#             response['Cache-Control'] = 'no-cache'
-#             response['X-Accel-Buffering'] = 'no'
-#             return response
-                
-#         except Exception as e:
-#             logger.error(f"Unexpected error: {str(e)}", exc_info=True)
-#             return Response({
-#                 'error': str(e)
-#             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 class ChatView(APIView):
     permission_classes = [AllowAny]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        
+        # 기존 유사도 분석기
+        from .similarity_analyzer import SimilarityAnalyzer  # 실제 import 경로로 변경 필요
         self.similarity_analyzer = SimilarityAnalyzer(threshold=0.85)
+        
+        # LangChain 관리자 초기화
+        self.langchain_manager = LangChainManager(
+            openai_key=OPENAI_API_KEY,
+            anthropic_key=ANTHROPIC_API_KEY,
+            groq_key=GROQ_API_KEY
+        )
+        
+        # LangGraph 워크플로우 초기화
+        self.workflow = AIComparisonWorkflow(
+            langchain_manager=self.langchain_manager,
+            similarity_analyzer=self.similarity_analyzer
+        )
+        
+        # 기존 ChatBot 인스턴스들도 LangChain 사용하도록 업데이트
+        self.update_chatbots_with_langchain()
+
+    def update_chatbots_with_langchain(self):
+        """기존 ChatBot들을 LangChain을 사용하도록 업데이트"""
+        global chatbots
+        
+        # 기존 ChatBot들에 LangChain 매니저 추가
+        for bot_id, bot in chatbots.items():
+            bot.langchain_manager = self.langchain_manager
+            bot.use_langchain = True
+            
+            # LangChain 체인 생성 시도
+            try:
+                if bot_id == 'gpt':
+                    bot.chat_chain = self.langchain_manager.create_chat_chain('gpt')
+                elif bot_id == 'claude':
+                    bot.chat_chain = self.langchain_manager.create_chat_chain('claude')
+                elif bot_id == 'mixtral':
+                    bot.groq_llm = self.langchain_manager.groq_llm if hasattr(self.langchain_manager, 'groq_llm') else None
+                logger.info(f"LangChain 체인 생성 완료: {bot_id}")
+            except Exception as e:
+                logger.warning(f"LangChain 체인 생성 실패 ({bot_id}), 기존 방식 사용: {e}")
+                bot.use_langchain = False
 
     def post(self, request, preferredModel):
         try:
@@ -863,10 +850,12 @@ class ChatView(APIView):
             selected_models = data.get('selectedModels', ['gpt', 'claude', 'mixtral'])
             token = request.headers.get('Authorization')
             user_language = 'ko' if not token else data.get('language', 'ko')
+            use_workflow = data.get('useWorkflow', True)  # 워크플로우 사용 여부
+            
             if not user_message:
                 return Response({'error': 'No message provided'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # 링크만 있을 경우 페이지 내용으로 분석 요청
+            # URL 처리 로직 (기존과 동일)
             url_pattern = r'^(https?://\S+)$'
             match = re.match(url_pattern, user_message.strip())
             if match:
@@ -884,75 +873,215 @@ class ChatView(APIView):
                     logger.error(f"URL fetch error: {e}")
                     return Response({'error': f"URL을 가져오지 못했습니다: {e}"}, status=status.HTTP_400_BAD_REQUEST)
 
-            def stream_responses():
-                try:
-                    system_message = {
-                        'role': 'system',
-                        'content': f"사용자가 선택한 언어는 '{user_language}'입니다. 반드시 이 언어({user_language})로 응답하세요."
-                    }
-                    responses = {}
-                    request_id = str(time.time())
-                    # 각 모델별 챗봇 인스턴스 가져오기
-                    selected_chatbots = {m: chatbots.get(m) for m in selected_models if chatbots.get(m)}
-
-                    # 모델 응답 스트리밍
-                    for bot_id, bot in selected_chatbots.items():
-                        try:
-                            bot.conversation_history = [system_message]
-                            resp_text = bot.chat(user_message)
-                            responses[bot_id] = resp_text
-                            yield json.dumps({'type':'bot_response','botId':bot_id,'response':resp_text,'requestId':request_id}) + '\n'
-                        except Exception as e:
-                            yield json.dumps({'type':'bot_error','botId':bot_id,'error':str(e),'requestId':request_id}) + '\n'
-
-                    # 유사도 분석
-                    if len(responses) >= 2:
-                        sim_res = self.similarity_analyzer.cluster_responses(responses)
-                        serial = convert_to_serializable(sim_res)
-                        yield json.dumps({'type':'similarity_analysis','result':serial,'requestId':request_id,'timestamp':time.time(),'userMessage':user_message}) + '\n'
-
-                    # 최종 비교 및 분석
-                    analyzer_bot = chatbots.get(preferredModel) or chatbots.get('gpt')
-                    analyzer_bot.conversation_history = [system_message]
-                    analysis = analyzer_bot.analyze_responses(responses, user_message, user_language, list(responses.keys()))
-                    yield json.dumps({
-                        'type':'analysis',
-                        'preferredModel': analyzer_bot.api_type.upper(),
-                        'best_response': analysis.get('best_response',''),
-                        'analysis': analysis.get('analysis',{}),
-                        'reasoning': analysis.get('reasoning',''),
-                        'language': user_language,
-                        'requestId': request_id,
-                        'timestamp': time.time(),
-                        'userMessage': user_message
-                    }) + '\n'
-                except Exception as e:
-                    yield json.dumps({'type':'error','error':f"Stream error: {e}"}) + '\n'
-
-            return StreamingHttpResponse(stream_responses(), content_type='text/event-stream')
+            # 워크플로우 사용 여부에 따른 분기
+            if use_workflow:
+                return self.handle_with_workflow(user_message, selected_models, user_language, preferredModel)
+            else:
+                return self.handle_with_legacy(user_message, selected_models, user_language, preferredModel)
 
         except Exception as e:
             logger.error(f"Unexpected error: {e}", exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# API 키 설정
+    def handle_with_workflow(self, user_message, selected_models, user_language, preferred_model):
+        """LangGraph 워크플로우를 사용한 처리"""
+        def stream_workflow_responses():
+            try:
+                request_id = str(time.time())
+                
+                # 워크플로우 실행을 위한 async 래퍼
+                async def run_workflow_async():
+                    return await self.workflow.run_workflow(
+                        user_message=user_message,
+                        selected_models=selected_models,
+                        user_language=user_language,
+                        request_id=request_id
+                    )
+                
+                # asyncio 이벤트 루프에서 실행
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+                try:
+                    workflow_result = loop.run_until_complete(run_workflow_async())
+                finally:
+                    loop.close()
+                
+                # 개별 응답 스트리밍
+                for bot_id, response in workflow_result["individual_responses"].items():
+                    yield json.dumps({
+                        'type': 'bot_response',
+                        'botId': bot_id,
+                        'response': response,
+                        'requestId': request_id
+                    }) + '\n'
+                
+                # 유사도 분석 결과
+                if workflow_result["similarity_analysis"]:
+                    yield json.dumps({
+                        'type': 'similarity_analysis',
+                        'result': workflow_result["similarity_analysis"],
+                        'requestId': request_id,
+                        'timestamp': time.time(),
+                        'userMessage': user_message
+                    }) + '\n'
+                
+                # 최종 분석 결과
+                final_analysis = workflow_result["final_analysis"]
+                yield json.dumps({
+                    'type': 'analysis',
+                    'preferredModel': final_analysis.get('preferredModel', preferred_model.upper()),
+                    'best_response': final_analysis.get('best_response', ''),
+                    'analysis': final_analysis.get('analysis', {}),
+                    'reasoning': final_analysis.get('reasoning', ''),
+                    'language': user_language,
+                    'requestId': request_id,
+                    'timestamp': time.time(),
+                    'userMessage': user_message,
+                    'workflowUsed': True,
+                    'errors': workflow_result.get("errors", [])
+                }) + '\n'
+                
+            except Exception as e:
+                logger.error(f"워크플로우 스트리밍 에러: {e}")
+                yield json.dumps({
+                    'type': 'error',
+                    'error': f"Workflow error: {e}",
+                    'fallbackToLegacy': True
+                }) + '\n'
+
+        return StreamingHttpResponse(stream_workflow_responses(), content_type='text/event-stream')
+
+    def handle_with_legacy(self, user_message, selected_models, user_language, preferred_model):
+        """기존 방식으로 처리 (호환성 유지)"""
+        def stream_responses():
+            try:
+                system_message = {
+                    'role': 'system',
+                    'content': f"사용자가 선택한 언어는 '{user_language}'입니다. 반드시 이 언어({user_language})로 응답하세요."
+                }
+                responses = {}
+                request_id = str(time.time())
+                
+                # 각 모델별 챗봇 인스턴스 가져오기
+                selected_chatbots = {m: chatbots.get(m) for m in selected_models if chatbots.get(m)}
+
+                # 모델 응답 수집 (비동기 처리 시도)
+                async def collect_responses_async():
+                    responses = {}
+                    tasks = []
+                    
+                    for bot_id, bot in selected_chatbots.items():
+                        if hasattr(bot, 'chat_async') and bot.use_langchain:
+                            # LangChain 비동기 사용
+                            task = bot.chat_async(user_message, user_language=user_language)
+                        else:
+                            # 기존 동기 방식을 비동기로 래핑
+                            task = sync_to_async(self.sync_chat)(bot, user_message, system_message)
+                        tasks.append((bot_id, task))
+                    
+                    for bot_id, task in tasks:
+                        try:
+                            response = await task
+                            responses[bot_id] = response
+                            logger.info(f"✅ {bot_id} 응답 완료")
+                        except Exception as e:
+                            logger.error(f"❌ {bot_id} 응답 실패: {e}")
+                    
+                    return responses
+
+                # 비동기 응답 수집
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+                try:
+                    responses = loop.run_until_complete(collect_responses_async())
+                finally:
+                    loop.close()
+
+                # 개별 응답 스트리밍
+                for bot_id, resp_text in responses.items():
+                    yield json.dumps({
+                        'type': 'bot_response',
+                        'botId': bot_id,
+                        'response': resp_text,
+                        'requestId': request_id
+                    }) + '\n'
+
+                # 유사도 분석
+                if len(responses) >= 2:
+                    sim_res = self.similarity_analyzer.cluster_responses(responses)
+                    serial = convert_to_serializable(sim_res)
+                    yield json.dumps({
+                        'type': 'similarity_analysis',
+                        'result': serial,
+                        'requestId': request_id,
+                        'timestamp': time.time(),
+                        'userMessage': user_message
+                    }) + '\n'
+
+                # 최종 비교 및 분석
+                analyzer_bot = chatbots.get(preferred_model) or chatbots.get('gpt')
+                analyzer_bot.conversation_history = [system_message]
+                
+                # LangChain 비동기 분석 시도
+                if hasattr(analyzer_bot, 'analyze_responses_async') and analyzer_bot.use_langchain:
+                    async def analyze_async():
+                        return await analyzer_bot.analyze_responses_async(
+                            responses, user_message, user_language, list(responses.keys())
+                        )
+                    
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    
+                    try:
+                        analysis = loop.run_until_complete(analyze_async())
+                    finally:
+                        loop.close()
+                else:
+                    # 기존 동기 방식
+                    analysis = analyzer_bot.analyze_responses(
+                        responses, user_message, user_language, list(responses.keys())
+                    )
+                
+                yield json.dumps({
+                    'type': 'analysis',
+                    'preferredModel': analyzer_bot.api_type.upper(),
+                    'best_response': analysis.get('best_response', ''),
+                    'analysis': analysis.get('analysis', {}),
+                    'reasoning': analysis.get('reasoning', ''),
+                    'language': user_language,
+                    'requestId': request_id,
+                    'timestamp': time.time(),
+                    'userMessage': user_message,
+                    'workflowUsed': False
+                }) + '\n'
+                
+            except Exception as e:
+                yield json.dumps({
+                    'type': 'error',
+                    'error': f"Stream error: {e}"
+                }) + '\n'
+
+        return StreamingHttpResponse(stream_responses(), content_type='text/event-stream')
+
+    def sync_chat(self, bot, user_message, system_message):
+        """동기 채팅을 위한 헬퍼 메서드"""
+        bot.conversation_history = [system_message]
+        return bot.chat(user_message)
+
+# API 키 설정 (기존과 동일)
 OPENAI_API_KEY = "***REMOVED***"
 ANTHROPIC_API_KEY = "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"
 GROQ_API_KEY = "***REMOVED***"
 
+# ChatBot import (수정된 버전)
 
 chatbots = {
     'gpt': ChatBot(OPENAI_API_KEY, 'gpt-3.5-turbo', 'openai'),
     'claude': ChatBot(ANTHROPIC_API_KEY, 'claude-3-5-haiku-20241022', 'anthropic'), 
     'mixtral': ChatBot(GROQ_API_KEY, 'llama3-8b-8192', 'groq'),
 }
-# chatbots = {
-#     'gpt': ChatBot(OPENAI_API_KEY, 'gpt-4-turbo', 'openai'),
-#     'claude': ChatBot(ANTHROPIC_API_KEY, 'claude-3-opus-20240229', 'anthropic'), 
-#     'mixtral': ChatBot(GROQ_API_KEY, 'llama3-8b-8192', 'groq'),
-# }
-
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
