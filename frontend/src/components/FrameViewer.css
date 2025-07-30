@@ -1,0 +1,382 @@
+/* FrameViewer.css - 바운딩 박스 표시 전용 스타일 */
+
+.frame-viewer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+}
+
+.frame-viewer-content {
+  background: white;
+  border-radius: 12px;
+  max-width: 95vw;
+  max-height: 95vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+}
+
+.frame-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  border-radius: 12px 12px 0 0;
+}
+
+.frame-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.frame-info h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 18px;
+}
+
+.timestamp {
+  background: #3498db;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.bbox-count {
+  background: #e74c3c;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.close-button {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.close-button:hover {
+  background: #c0392b;
+}
+
+/* 이미지 컨테이너 */
+.frame-image-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #000;
+  min-height: 400px;
+}
+
+.frame-image {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.bbox-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  border-radius: 8px;
+}
+
+/* 감지된 객체 패널 */
+.detected-objects-panel {
+  background: #f8f9fa;
+  padding: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.detected-objects-panel h4 {
+  margin: 0 0 16px 0;
+  color: #2c3e50;
+  font-size: 16px;
+}
+
+.objects-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.object-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.object-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.object-color-indicator {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.object-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.object-name {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 14px;
+  text-transform: capitalize;
+}
+
+.object-confidence {
+  font-size: 12px;
+  color: #27ae60;
+  font-weight: 500;
+}
+
+.object-color {
+  font-size: 11px;
+  color: #7f8c8d;
+}
+
+/* 프레임 상세 정보 패널 */
+.frame-details-panel {
+  padding: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.frame-details-panel h4 {
+  margin: 0 0 16px 0;
+  color: #2c3e50;
+  font-size: 16px;
+}
+
+.frame-details {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detail-item {
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 8px;
+  border-left: 4px solid #3498db;
+}
+
+.detail-item strong {
+  color: #2c3e50;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.detail-item p {
+  margin: 0;
+  color: #5a6c7d;
+  line-height: 1.5;
+}
+
+/* 고급 분석 섹션 */
+.advanced-analysis-details {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.analysis-section {
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.analysis-section h5 {
+  margin: 0 0 12px 0;
+  color: #2c3e50;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clip-results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.scene-type-tag {
+  background: #3498db;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ocr-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ocr-text-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.text-content {
+  font-family: 'Courier New', monospace;
+  color: #2c3e50;
+  font-weight: 500;
+}
+
+.text-confidence {
+  color: #27ae60;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* 액션 버튼 */
+.frame-actions {
+  display: flex;
+  gap: 12px;
+  padding: 20px;
+  border-top: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  border-radius: 0 0 12px 12px;
+}
+
+.action-button {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.action-button.download {
+  background: #27ae60;
+  color: white;
+}
+
+.action-button.download:hover {
+  background: #229954;
+  transform: translateY(-2px);
+}
+
+.action-button.share {
+  background: #3498db;
+  color: white;
+}
+
+.action-button.share:hover {
+  background: #2980b9;
+  transform: translateY(-2px);
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .frame-viewer-content {
+    margin: 20px;
+    max-width: calc(100vw - 40px);
+    max-height: calc(100vh - 40px);
+  }
+  
+  .frame-viewer-header {
+    padding: 12px 16px;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  
+  .frame-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .objects-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .frame-actions {
+    flex-direction: column;
+  }
+  
+  .action-button {
+    justify-content: center;
+  }
+}
+
+/* 로딩 상태 */
+.frame-image[src=""] {
+  background: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.frame-image[src=""]:before {
+  content: "🖼️ 이미지 로딩 중...";
+  color: #7f8c8d;
+  font-size: 16px;
+}
+
+/* 바운딩 박스 애니메이션 */
+@keyframes bboxGlow {
+  0% { opacity: 0.7; }
+  50% { opacity: 1; }
+  100% { opacity: 0.7; }
+}
+
+.bbox-overlay {
+  animation: bboxGlow 2s ease-in-out infinite;
+}

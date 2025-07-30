@@ -375,3 +375,20 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # 프론트엔드 개발 서버 주소
 ]
+import os
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# 정적 파일 설정
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# 비디오 관련 설정 추가
+VIDEO_FOLDER = os.path.join(MEDIA_ROOT, 'videos')
+UPLOAD_FOLDER = os.path.join(MEDIA_ROOT, 'uploads')  
+IMAGE_FOLDER = os.path.join(MEDIA_ROOT, 'images')
+
+# 폴더가 없으면 생성
+os.makedirs(VIDEO_FOLDER, exist_ok=True)
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(IMAGE_FOLDER, exist_ok=True)
