@@ -10,7 +10,7 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
-
+ai_of_ai_private/chatbot_backend/chat/.env
 # 빌드 결과물
 build/
 dist/

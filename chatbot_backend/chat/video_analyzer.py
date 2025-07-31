@@ -12,11 +12,12 @@ import time
 from PIL import Image
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
+from dotenv import load_dotenv
 import threading
 # 환경 설정
+load_dotenv()  
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["GROQ_API_KEY"] = "***REMOVED***"
-
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 # API 클라이언트들
 from groq import Groq
 import openai
@@ -109,9 +110,9 @@ except ImportError:
     print("⚠️ LangChain 라이브러리 미설치 - RAG 기능 비활성화")
 
 # API 설정
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "***REMOVED***")
-OPENAI_API_KEY = "***REMOVED***"
-ANTHROPIC_API_KEY = "***REMOVED***"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
 # 클라이언트 초기화
 groq_client = Groq(api_key=GROQ_API_KEY)

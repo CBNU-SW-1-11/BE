@@ -1,747 +1,653 @@
+// pages/IntegratedChatPage.js - 중복 제거된 버전
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { videoAnalysisService } from '../services/videoAnalysisService';
-import FrameViewer from '../components/FrameViewer'; // 새로 추가된 컴포넌트
-import './IntegratedChatPage.css';
 
 const IntegratedChatPage = () => {
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [videos, setVideos] = useState([]);
-  const [selectedVideo, setSelectedVideo] = useState(null);
-  const [searchResults, setSearchResults] = useState([]);
-  const [error, setError] = useState(null);
-  const messagesEndRef = useRef(null);
-  
-  // 고급 분석 관련 상태
-  const [analysisInsights, setAnalysisInsights] = useState({});
-  const [advancedSearchMode, setAdvancedSearchMode] = useState(false);
-  const [searchFilters, setSearchFilters] = useState({
-    includeClipAnalysis: true,
-    includeOcrText: true,
-    includeVqaResults: false,
-    includeSceneGraph: false,
-    confidenceThreshold: 0.7
-  });
-  const [chatMode, setChatMode] = useState('general');
-  
-  // ✅ 새로 추가: 프레임 뷰어 상태
-  const [selectedFrame, setSelectedFrame] = useState(null);
-  const [frameViewerOpen, setFrameViewerOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [currentVideo, setCurrentVideo] = useState(null);
+  const [availableVideos, setAvailableVideos] = useState([]);
+  const chatContainerRef = useRef(null);
 
   useEffect(() => {
-    loadVideos();
-    addWelcomeMessage();
+    loadAvailableVideos();
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const loadVideos = async () => {
+  const loadAvailableVideos = async () => {
     try {
-      const response = await videoAnalysisService.getVideoList();
-      const analyzedVideos = response.videos.filter(v => v.is_analyzed);
-      setVideos(analyzedVideos);
+      const data = await videoAnalysisService.getVideoList();
+      const analyzedVideos = data.videos?.filter(v => v.is_analyzed) || [];
+      setAvailableVideos(analyzedVideos);
       
-      if (analyzedVideos.length > 0 && !selectedVideo) {
-        const advancedVideo = analyzedVideos.find(v => v.advanced_features_used && 
-          Object.values(v.advanced_features_used).some(Boolean)) || analyzedVideos[0];
-        setSelectedVideo(advancedVideo);
-        
-        if (advancedVideo.advanced_features_used) {
-          loadVideoInsights(advancedVideo.id);
-        }
+      if (analyzedVideos.length > 0 && !currentVideo) {
+        setCurrentVideo(analyzedVideos[0]);
       }
     } catch (error) {
       console.error('비디오 목록 로드 실패:', error);
-      setError('비디오 목록을 불러올 수 없습니다.');
     }
   };
 
-  const loadVideoInsights = async (videoId) => {
-    try {
-      const insights = await videoAnalysisService.sendVideoChatMessage(
-        '이 비디오의 고급 분석 결과와 주요 특징들을 요약해주세요. 사용된 AI 기능들과 발견된 주요 내용을 포함해서 설명해주세요.',
-        videoId
-      );
+  // 시간 범위 파싱 함수 개선
+  const parseTimeRange = (message) => {
+    // "3:00~5:00", "3:00-5:00", "3분~5분" 등의 패턴 감지
+    const timePatterns = [
+      /(\d+):(\d+)\s*[-~]\s*(\d+):(\d+)/,  // 3:00-5:00 형태
+      /(\d+)분\s*[-~]\s*(\d+)분/,          // 3분-5분 형태
+      /(\d+)\s*[-~]\s*(\d+)분/,            // 3-5분 형태
+    ];
+
+    for (const pattern of timePatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        if (pattern.source.includes(':')) {
+          return {
+            start: `${match[1]}:${match[2]}`,
+            end: `${match[3]}:${match[4]}`
+          };
+        } else {
+          return {
+            start: `${match[1]}:00`,
+            end: `${match[2]}:00`
+          };
+        }
+      }
+    }
+    return null;
+  };
+
+  // 검색 타입 감지 개선
+  const detectSearchIntent = (message) => {
+    const messageLower = message.toLowerCase();
+    
+    // 시간대별 분석 키워드
+    const timeAnalysisKeywords = ['성비', '분포', '통계', '비율', '몇명', '얼마나'];
+    // 객체 추적 키워드  
+    const trackingKeywords = ['추적', '지나간', '상의', '모자', '색깔', '옷'];
+    
+    const hasTimeRange = parseTimeRange(message) !== null;
+    const hasTimeAnalysis = timeAnalysisKeywords.some(keyword => messageLower.includes(keyword));
+    const hasTracking = trackingKeywords.some(keyword => messageLower.includes(keyword));
+
+    if (hasTimeRange && hasTimeAnalysis) {
+      return 'time-analysis';
+    } else if (hasTracking || messageLower.includes('남성') || messageLower.includes('여성')) {
+      return 'object-tracking';
+    } else {
+      return 'general-search';
+    }
+  };
+
+  // 검색 응답 포맷팅 함수
+  const formatSearchResponse = (query, searchResults) => {
+    if (!searchResults || searchResults.length === 0) {
+      return `'${query}' 검색 결과를 찾을 수 없습니다.`;
+    }
+
+    let response_text = `'${query}' 검색 결과 ${searchResults.length}개를 찾았습니다.\n\n`;
+    
+    searchResults.slice(0, 5).forEach((result, index) => {
+      const timeStr = videoAnalysisService.timeUtils.secondsToTimeString(result.timestamp || 0);
+      response_text += `${index + 1}. 프레임 #${result.frame_id} (${timeStr})\n`;
       
-      setAnalysisInsights(prev => ({
-        ...prev,
-        [videoId]: insights.response || insights
-      }));
-    } catch (error) {
-      console.error('비디오 인사이트 로드 실패:', error);
+      if (result.caption) {
+        response_text += `   ${result.caption.substring(0, 100)}...\n`;
+      }
+      
+      response_text += '\n';
+    });
+    
+    if (searchResults.length > 5) {
+      response_text += `... 외 ${searchResults.length - 5}개 프레임 더\n\n`;
     }
+    
+    response_text += '🖼️ 아래에서 실제 프레임 이미지를 확인하세요!';
+    
+    return response_text;
   };
 
-  const addWelcomeMessage = () => {
-    const welcomeMessage = {
-      id: Date.now(),
-      type: 'bot',
-      content: `🧠 고급 AI 비디오 분석 채팅에 오신 것을 환영합니다!
-
-저는 Scene Graph, VQA, OCR, CLIP 등 최신 AI 기술을 활용하여 비디오를 분석하고, 여러분의 질문에 답변해드립니다.
-
-✨ **새로운 고급 기능들:**
-🖼️ **CLIP 씬 분석** - 이미지의 의미적 컨텍스트 이해
-📝 **OCR 텍스트 추출** - 비디오 내 텍스트 인식
-❓ **VQA 질문답변** - 이미지에 대한 지능적 질문과 답변
-🕸️ **Scene Graph** - 객체간 관계 및 상호작용 분석
-📦 **바운딩 박스 표시** - 감지된 객체를 시각적으로 강조 표시
-
-**사용법:**
-• "사람이 있는 장면 찾아줘" - 바운딩 박스와 함께 결과 표시
-• "차가 있는 부분 보여줘" - 차량 감지 결과를 시각적으로 표시
-• "텍스트가 있는 장면은?" - OCR 결과와 함께 표시
-• "가장 중요한 장면들을 보여줘" - 하이라이트 장면 분석
-
-어떤 도움이 필요하신가요?`,
-      timestamp: new Date().toLocaleTimeString()
-    };
-    
-    setMessages([welcomeMessage]);
-  };
-
-  const handleVideoSelect = (video) => {
-    setSelectedVideo(video);
-    setSearchResults([]);
-    
-    const videoChangeMessage = {
-      id: Date.now(),
-      type: 'system',
-      content: `📹 "${video.original_name}" 비디오로 변경되었습니다.${video.advanced_features_used ? 
-        '\n🚀 이 비디오는 고급 분석이 완료되어 더 정확한 결과를 제공할 수 있습니다.' : ''}`,
-      timestamp: new Date().toLocaleTimeString()
-    };
-    
-    setMessages(prev => [...prev, videoChangeMessage]);
-    
-    if (video.advanced_features_used && !analysisInsights[video.id]) {
-      loadVideoInsights(video.id);
+  // 메시지 전송 함수 (단일 정의)
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || loading) return;
+    if (!currentVideo) {
+      alert('분석된 비디오를 먼저 선택해주세요.');
+      return;
     }
-  };
 
-  const sendMessage = async () => {
-    if (!inputMessage.trim() || !selectedVideo) return;
+    const userMessage = inputMessage.trim();
+    setInputMessage('');
+    setLoading(true);
 
-    const userMessage = {
+    // 사용자 메시지 추가
+    const newUserMessage = {
       id: Date.now(),
       type: 'user',
-      content: inputMessage,
-      timestamp: new Date().toLocaleTimeString()
+      content: userMessage,
+      timestamp: new Date()
     };
-
-    setMessages(prev => [...prev, userMessage]);
-    setIsLoading(true);
-    setError(null);
+    setMessages(prev => [...prev, newUserMessage]);
 
     try {
-      let response;
+      console.log('🔍 메시지 분석 시작:', userMessage);
       
-      if (advancedSearchMode && isSearchQuery(inputMessage)) {
-        response = await videoAnalysisService.searchVideoAdvanced(
-          selectedVideo.id, 
-          inputMessage, 
-          searchFilters
-        );
+      // 검색 의도 감지
+      const searchIntent = detectSearchIntent(userMessage);
+      console.log('📋 감지된 검색 의도:', searchIntent);
+      
+      let response;
+      let searchResults = null;
+      let searchType = 'general';
+
+      if (searchIntent === 'time-analysis') {
+        // 시간대별 분석
+        const timeRange = parseTimeRange(userMessage);
+        console.log('⏰ 파싱된 시간 범위:', timeRange);
         
-        if (response.search_results) {
-          setSearchResults(response.search_results);
+        if (timeRange) {
+          try {
+            response = await videoAnalysisService.analyzeTimeBasedData(
+              currentVideo.id,
+              timeRange,
+              userMessage
+            );
+            searchType = 'time-analysis';
+            searchResults = response.result;
+            
+            // 결과 포맷팅
+            if (response.result && response.result.total_persons !== undefined) {
+              const result = response.result;
+              response.formatted_response = 
+                `📊 ${timeRange.start}~${timeRange.end} 시간대 분석 결과:\n\n` +
+                `👥 총 인원: ${result.total_persons}명\n` +
+                `👨 남성: ${result.male_count}명 (${result.gender_ratio?.male || 0}%)\n` +
+                `👩 여성: ${result.female_count}명 (${result.gender_ratio?.female || 0}%)\n\n`;
+              
+              if (result.clothing_colors && Object.keys(result.clothing_colors).length > 0) {
+                response.formatted_response += `👕 주요 의상 색상:\n`;
+                Object.entries(result.clothing_colors).slice(0, 3).forEach(([color, count]) => {
+                  response.formatted_response += `   • ${color}: ${count}명\n`;
+                });
+              }
+              
+              if (result.peak_times && result.peak_times.length > 0) {
+                response.formatted_response += `\n⏰ 활동 피크 시간: ${result.peak_times.join(', ')}`;
+              }
+            }
+          } catch (error) {
+            console.error('❌ 시간대별 분석 실패:', error);
+            response = { error: error.message };
+          }
+        } else {
+          response = { error: '시간 범위를 명확히 지정해주세요 (예: 3:00~5:00)' };
         }
-      } else {
-        response = await videoAnalysisService.sendVideoChatMessage(inputMessage, selectedVideo.id);
         
-        if (response.search_results) {
-          setSearchResults(response.search_results);
+      } else if (searchIntent === 'object-tracking') {
+        // 객체 추적
+        const timeRange = parseTimeRange(userMessage);
+        console.log('🎯 객체 추적 시작, 시간 범위:', timeRange);
+        
+        try {
+          response = await videoAnalysisService.trackObjectInVideo(
+            currentVideo.id,
+            userMessage,
+            timeRange || {}
+          );
+          searchType = 'object-tracking';
+          searchResults = response.tracking_results;
+          
+          // 결과 포맷팅
+          if (response.tracking_results && response.tracking_results.length > 0) {
+            const results = response.tracking_results;
+            response.formatted_response = 
+              `🎯 "${response.tracking_target}" 추적 결과:\n\n` +
+              `📍 총 ${results.length}개 장면에서 발견\n\n`;
+            
+            results.slice(0, 5).forEach((result, index) => {
+              const timeStr = videoAnalysisService.timeUtils.secondsToTimeString(result.timestamp);
+              response.formatted_response += 
+                `${index + 1}. ${timeStr} - ${result.description} (신뢰도: ${(result.confidence * 100).toFixed(1)}%)\n`;
+            });
+            
+            if (results.length > 5) {
+              response.formatted_response += `\n... 외 ${results.length - 5}개 장면 더`;
+            }
+          } else {
+            response.formatted_response = `🔍 "${response.tracking_target}"에 해당하는 객체를 찾을 수 없습니다.`;
+          }
+        } catch (error) {
+          console.error('❌ 객체 추적 실패:', error);
+          response = { error: error.message };
+        }
+        
+      } else {
+        // 일반 채팅 또는 프레임 검색
+        try {
+          response = await videoAnalysisService.sendVideoChatMessage(userMessage, currentVideo.id);
+          
+          // 검색 결과가 있으면 프레임 검색으로 처리
+          if (response.search_results && Array.isArray(response.search_results)) {
+            searchType = 'frame-search';
+            searchResults = response.search_results;
+            
+            // 검색 응답 포맷팅
+            response.formatted_response = formatSearchResponse(userMessage, searchResults);
+          }
+        } catch (error) {
+          console.error('❌ 일반 채팅 실패:', error);
+          response = { error: error.message };
         }
       }
 
+      // 응답 메시지 생성
       const botMessage = {
         id: Date.now() + 1,
         type: 'bot',
-        content: response.response || response.insights || '응답을 받지 못했습니다.',
-        timestamp: new Date().toLocaleTimeString(),
-        searchResults: response.search_results,
-        analysisType: response.search_type || 'general',
-        fallbackUsed: response.fallback_used,
-        hasBboxAnnotations: response.has_bbox_annotations || false // ✅ 바운딩 박스 정보 추가
+        content: response.formatted_response || response.response || response.error || '응답을 생성할 수 없습니다.',
+        timestamp: new Date(),
+        searchType: searchType,
+        searchResults: searchResults,
+        originalResponse: response
       };
 
       setMessages(prev => [...prev, botMessage]);
       
-      if (response.search_results && response.search_results.length > 0) {
-        setChatMode('search');
-      } else if (response.insights) {
-        setChatMode('insights');
-      }
+      console.log('✅ 메시지 처리 완료:', {
+        searchType,
+        hasResults: !!searchResults,
+        responseLength: botMessage.content.length
+      });
 
     } catch (error) {
-      console.error('메시지 전송 실패:', error);
+      console.error('❌ 메시지 전송 실패:', error);
       
       const errorMessage = {
         id: Date.now() + 1,
-        type: 'error',
+        type: 'bot',
         content: `오류가 발생했습니다: ${error.message}`,
-        timestamp: new Date().toLocaleTimeString()
+        timestamp: new Date(),
+        isError: true
       };
       
       setMessages(prev => [...prev, errorMessage]);
-      setError(error.message);
     } finally {
-      setIsLoading(false);
-      setInputMessage('');
+      setLoading(false);
     }
-  };
-
-  const isSearchQuery = (message) => {
-    const searchKeywords = ['찾아', '검색', '어디', 'find', 'search', 'where', '보여줘', '있는'];
-    return searchKeywords.some(keyword => message.toLowerCase().includes(keyword));
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
+    // 시간 범위 파싱 함수 개선
+    const parseTimeRange = (message) => {
+      // "3:00~5:00", "3:00-5:00", "3분~5분" 등의 패턴 감지
+      const timePatterns = [
+        /(\d+):(\d+)\s*[-~]\s*(\d+):(\d+)/,  // 3:00-5:00 형태
+        /(\d+)분\s*[-~]\s*(\d+)분/,          // 3분-5분 형태
+        /(\d+)\s*[-~]\s*(\d+)분/,            // 3-5분 형태
+      ];
 
-  // ✅ 새로 추가: 프레임 보기 함수 (바운딩 박스 포함)
-  const viewFrameWithBbox = async (result) => {
-    try {
-      console.log('🖼️ 바운딩 박스와 함께 프레임 보기:', result);
-      
-      // 프레임 이미지 URL 생성
-      const frameUrl = videoAnalysisService.getFrameImageUrl(selectedVideo.id, result.frame_id);
-      
-      // 바운딩 박스 어노테이션 준비
-      const bboxAnnotations = result.bbox_annotations || [];
-      
-      // 고급 프레임 데이터 로드 시도
-      let frameData = null;
-      try {
-        const response = await fetch(`/api/frame/${selectedVideo.id}/${result.frame_id}/enhanced/`);
-        if (response.ok) {
-          frameData = await response.json();
-        }
-      } catch (error) {
-        console.warn('고급 프레임 데이터 로드 실패, 기본 데이터 사용:', error);
-        // 기본 데이터 사용
-        frameData = {
-          caption: result.caption,
-          timestamp: result.timestamp,
-          detected_objects: result.detected_objects || [],
-          advanced_analysis: {
-            clip_analysis: result.clip_analysis,
-            ocr_text: result.ocr_text,
-            vqa_results: result.vqa_results
+      for (const pattern of timePatterns) {
+        const match = message.match(pattern);
+        if (match) {
+          if (pattern.source.includes(':')) {
+            return {
+              start: `${match[1]}:${match[2]}`,
+              end: `${match[3]}:${match[4]}`
+            };
+          } else {
+            return {
+              start: `${match[1]}:00`,
+              end: `${match[2]}:00`
+            };
           }
-        };
+        }
       }
-      
-      // 프레임 뷰어 상태 설정
-      setSelectedFrame({
-        frameId: result.frame_id,
-        frameUrl: frameUrl,
-        frameData: frameData,
-        bboxAnnotations: bboxAnnotations,
-        timestamp: result.timestamp
-      });
-      
-      setFrameViewerOpen(true);
-      
-      console.log('✅ 프레임 뷰어 열기 완료:', {
-        frameId: result.frame_id,
-        bboxCount: bboxAnnotations.length,
-        hasAdvancedData: !!frameData?.advanced_analysis
-      });
-      
-    } catch (error) {
-      console.error('❌ 프레임 보기 실패:', error);
-      alert('프레임을 불러오는 중 오류가 발생했습니다.');
-    }
-  };
-
-  // ✅ 프레임 뷰어 닫기
-  const closeFrameViewer = () => {
-    setFrameViewerOpen(false);
-    setSelectedFrame(null);
-  };
-
-  const renderAdvancedFeatures = (video) => {
-    if (!video.advanced_features_used) return null;
-
-    const features = video.advanced_features_used;
-    const featureIcons = {
-      clip: '🖼️',
-      ocr: '📝',
-      vqa: '❓',
-      scene_graph: '🕸️'
+      return null;
     };
 
-    return (
-      <div className="video-advanced-features">
-        <span className="features-label">고급 기능:</span>
-        {Object.entries(features).map(([feature, enabled]) => {
-          if (!enabled) return null;
-          return (
-            <span key={feature} className="feature-badge enabled">
-              {featureIcons[feature]} {feature.toUpperCase()}
-            </span>
-          );
-        })}
-      </div>
-    );
+    // 검색 타입 감지 개선
+    const detectSearchIntent = (message) => {
+      const messageLower = message.toLowerCase();
+      
+      // 시간대별 분석 키워드
+      const timeAnalysisKeywords = ['성비', '분포', '통계', '비율', '몇명', '얼마나'];
+      // 객체 추적 키워드  
+      const trackingKeywords = ['추적', '지나간', '상의', '모자', '색깔', '옷'];
+      
+      const hasTimeRange = parseTimeRange(message) !== null;
+      const hasTimeAnalysis = timeAnalysisKeywords.some(keyword => messageLower.includes(keyword));
+      const hasTracking = trackingKeywords.some(keyword => messageLower.includes(keyword));
+
+      if (hasTimeRange && hasTimeAnalysis) {
+        return 'time-analysis';
+      } else if (hasTracking || messageLower.includes('남성') || messageLower.includes('여성')) {
+        return 'object-tracking';
+      } else {
+        return 'general-search';
+      }
+    };
+
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
   };
 
-  const renderSearchFilters = () => {
-    if (!advancedSearchMode) return null;
-
-    return (
-      <div className="search-filters">
-        <h4>🔧 고급 검색 옵션</h4>
-        <div className="filter-options">
-          <label className="filter-option">
-            <input
-              type="checkbox"
-              checked={searchFilters.includeClipAnalysis}
-              onChange={(e) => setSearchFilters(prev => ({
-                ...prev,
-                includeClipAnalysis: e.target.checked
-              }))}
-            />
-            <span>🖼️ CLIP 씬 분석 포함</span>
-          </label>
-          
-          <label className="filter-option">
-            <input
-              type="checkbox"
-              checked={searchFilters.includeOcrText}
-              onChange={(e) => setSearchFilters(prev => ({
-                ...prev,
-                includeOcrText: e.target.checked
-              }))}
-            />
-            <span>📝 OCR 텍스트 포함</span>
-          </label>
-          
-          <label className="filter-option">
-            <input
-              type="checkbox"
-              checked={searchFilters.includeVqaResults}
-              onChange={(e) => setSearchFilters(prev => ({
-                ...prev,
-                includeVqaResults: e.target.checked
-              }))}
-            />
-            <span>❓ VQA 결과 포함</span>
-          </label>
-          
-          <label className="filter-option">
-            <input
-              type="checkbox"
-              checked={searchFilters.includeSceneGraph}
-              onChange={(e) => setSearchFilters(prev => ({
-                ...prev,
-                includeSceneGraph: e.target.checked
-              }))}
-            />
-            <span>🕸️ Scene Graph 포함</span>
-          </label>
-        </div>
-        
-        <div className="confidence-slider">
-          <label>신뢰도 임계값: {searchFilters.confidenceThreshold}</label>
-          <input
-            type="range"
-            min="0.1"
-            max="1.0"
-            step="0.1"
-            value={searchFilters.confidenceThreshold}
-            onChange={(e) => setSearchFilters(prev => ({
-              ...prev,
-              confidenceThreshold: parseFloat(e.target.value)
-            }))}
-          />
-        </div>
-      </div>
-    );
+  const formatTimestamp = (timestamp) => {
+    return timestamp.toLocaleDateString('ko-KR', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
   };
 
-  // ✅ 수정된 검색 결과 렌더링 (바운딩 박스 정보 포함)
-  const renderSearchResults = () => {
-    if (!searchResults || searchResults.length === 0) return null;
+  // 검색 결과 렌더링 (이미지 포함)
+  const renderSearchResults = (message) => {
+    if (!message.searchResults) return null;
 
-    return (
-      <div className="search-results-container">
-        <h4>🔍 검색 결과 ({searchResults.length}개)</h4>
-        {searchResults.some(r => r.bbox_annotations?.length > 0) && (
-          <div className="bbox-info-banner">
-            📦 바운딩 박스 표시 가능한 결과가 있습니다. 프레임을 클릭하여 상세히 확인하세요.
+    if (message.searchType === 'time-analysis') {
+      const result = message.searchResults;
+      return (
+        <div style={{ 
+          marginTop: '10px', 
+          padding: '10px', 
+          backgroundColor: '#f0f8ff', 
+          borderRadius: '5px',
+          fontSize: '14px'
+        }}>
+          <strong>📊 상세 분석 데이터:</strong>
+          <div style={{ marginTop: '5px' }}>
+            {result.analysis_period && <div>📅 분석 기간: {result.analysis_period}</div>}
+            {result.movement_patterns && <div>🔄 이동 패턴: {result.movement_patterns}</div>}
           </div>
-        )}
-        <div className="search-results-grid">
-          {searchResults.slice(0, 6).map((result, index) => (
-            <div key={index} className={`search-result-card ${result.bbox_annotations?.length > 0 ? 'has-bbox' : ''}`}>
-              <div className="result-header">
-                <span className="frame-number">프레임 #{result.frame_id}</span>
-                <span className="result-score">점수: {result.match_score?.toFixed(2) || 'N/A'}</span>
-                {result.bbox_annotations?.length > 0 && (
-                  <span className="bbox-indicator">📦 {result.bbox_annotations.length}개 객체</span>
-                )}
-              </div>
-              
-              <div className="result-info">
-                <div className="timestamp">
-                  ⏱️ {Math.floor(result.timestamp / 60)}:{String(Math.floor(result.timestamp % 60)).padStart(2, '0')}
-                </div>
-                
-                {result.detected_objects && result.detected_objects.length > 0 && (
-                  <div className="detected-objects">
-                    <strong>객체:</strong> {result.detected_objects.slice(0, 3).join(', ')}
-                  </div>
-                )}
-                
-                {result.caption && (
-                  <div className="result-caption">
-                    <strong>설명:</strong> {result.caption.substring(0, 100)}...
-                  </div>
-                )}
-                
-                {/* 바운딩 박스 객체 미리보기 */}
-                {result.bbox_annotations?.length > 0 && (
-                  <div className="bbox-preview">
-                    <strong>감지된 객체:</strong>
-                    <div className="bbox-objects">
-                      {result.bbox_annotations.map((annotation, idx) => (
-                        <span key={idx} className="bbox-object-tag">
-                          {annotation.match} ({(annotation.confidence * 100).toFixed(0)}%)
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {/* 고급 분석 결과 표시 */}
-                {result.clip_analysis && (
-                  <div className="advanced-result">
-                    <span className="advanced-tag">🖼️ CLIP</span>
-                    <span>{result.clip_analysis.scene_type || 'Scene analyzed'}</span>
-                  </div>
-                )}
-                
-                {result.ocr_text && result.ocr_text.full_text && (
-                  <div className="advanced-result">
-                    <span className="advanced-tag">📝 OCR</span>
-                    <span>{result.ocr_text.full_text.substring(0, 50)}...</span>
-                  </div>
-                )}
-                
-                {result.vqa_insights && (
-                  <div className="advanced-result">
-                    <span className="advanced-tag">❓ VQA</span>
-                    <span>질문답변 분석 완료</span>
-                  </div>
-                )}
-                
-                {result.match_reasons && result.match_reasons.length > 0 && (
-                  <div className="match-reasons">
-                    <strong>매칭 이유:</strong> {result.match_reasons.join(', ')}
-                  </div>
-                )}
-              </div>
-              
-              {/* ✅ 수정된 버튼 - 바운딩 박스 표시 기능 */}
-              <button 
-                onClick={() => viewFrameWithBbox(result)}
-                className={`view-frame-button ${result.bbox_annotations?.length > 0 ? 'with-bbox' : ''}`}
-                title={result.bbox_annotations?.length > 0 ? 
-                  `바운딩 박스와 함께 프레임 보기 (${result.bbox_annotations.length}개 객체)` : 
-                  '프레임 보기'}
-              >
-                {result.bbox_annotations?.length > 0 ? '📦 바운딩 박스와 함께 보기' : '🖼️ 프레임 보기'}
-              </button>
+        </div>
+      );
+    }
+
+    if (message.searchType === 'object-tracking' && Array.isArray(message.searchResults)) {
+      return (
+        <div style={{ 
+          marginTop: '10px', 
+          padding: '10px', 
+          backgroundColor: '#f0fff0', 
+          borderRadius: '5px',
+          fontSize: '14px'
+        }}>
+          <strong>🎯 추적된 위치들:</strong>
+          {message.searchResults.slice(0, 3).map((result, index) => (
+            <div key={index} style={{ marginTop: '5px' }}>
+              {videoAnalysisService.timeUtils.secondsToTimeString(result.timestamp)} 
+              {result.match_reasons && result.match_reasons.length > 0 && 
+                ` - ${result.match_reasons.join(', ')}`
+              }
             </div>
           ))}
         </div>
-      </div>
-    );
-  };
+      );
+    }
 
-  const renderMessage = (message) => {
-    return (
-      <div key={message.id} className={`message ${message.type}`}>
-        <div className="message-content">
-          <div className="message-text">
-            {message.content}
-            {message.fallbackUsed && (
-              <div className="fallback-notice">
-                ⚠️ 고급 분석 기능이 일시적으로 사용 불가하여 기본 분석 결과를 사용했습니다.
+    // 프레임 검색 결과 - 이미지 포함
+    if (message.searchType === 'frame-search' && Array.isArray(message.searchResults)) {
+      return (
+        <div style={{ 
+          marginTop: '15px', 
+          padding: '10px', 
+          backgroundColor: '#f8f9fa', 
+          borderRadius: '8px'
+        }}>
+          <strong>🖼️ 검색된 프레임들:</strong>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+            gap: '10px', 
+            marginTop: '10px' 
+          }}>
+            {message.searchResults.slice(0, 6).map((result, index) => (
+              <div key={index} style={{ 
+                border: '1px solid #ddd', 
+                borderRadius: '8px', 
+                overflow: 'hidden',
+                backgroundColor: 'white'
+              }}>
+                <img 
+                  src={videoAnalysisService.getFrameImageUrl(currentVideo?.id, result.frame_id)}
+                  alt={`프레임 ${result.frame_id}`}
+                  style={{ 
+                    width: '100%', 
+                    height: '120px', 
+                    objectFit: 'cover',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => {
+                    // 클릭시 큰 이미지로 보기
+                    const newWindow = window.open('', '_blank');
+                    newWindow.document.write(`
+                      <html>
+                        <head><title>프레임 ${result.frame_id}</title></head>
+                        <body style="margin:0; display:flex; justify-content:center; align-items:center; min-height:100vh; background:#000;">
+                          <img src="${videoAnalysisService.getFrameImageUrl(currentVideo?.id, result.frame_id)}" 
+                               style="max-width:90%; max-height:90%; object-fit:contain;" />
+                        </body>
+                      </html>
+                    `);
+                  }}
+                />
+                <div style={{ padding: '8px', fontSize: '12px' }}>
+                  <div><strong>프레임 #{result.frame_id}</strong></div>
+                  <div style={{ color: '#666' }}>
+                    {videoAnalysisService.timeUtils.secondsToTimeString(result.timestamp)}
+                  </div>
+                  <div style={{ color: '#666', marginTop: '4px' }}>
+                    신뢰도: {(result.match_score * 100).toFixed(1)}%
+                  </div>
+                  {result.matches && result.matches.length > 0 && (
+                    <div style={{ color: '#007bff', fontSize: '11px', marginTop: '2px' }}>
+                      {result.matches[0].match} 감지
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-            {message.hasBboxAnnotations && (
-              <div className="bbox-notice">
-                📦 바운딩 박스 표시 가능한 결과가 포함되어 있습니다.
-              </div>
-            )}
+            ))}
           </div>
-          <div className="message-timestamp">{message.timestamp}</div>
-          {message.analysisType && (
-            <div className="analysis-type-badge">
-              {message.analysisType === 'enhanced_search' ? '🔍 고급 검색' : 
-               message.analysisType === 'analysis_insights' ? '💡 분석 인사이트' : '💬 일반 채팅'}
+          {message.searchResults.length > 6 && (
+            <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '12px', color: '#666' }}>
+              ... 외 {message.searchResults.length - 6}개 프레임 더
             </div>
           )}
         </div>
-      </div>
-    );
-  };
+      );
+    }
 
-  const renderQuickActions = () => {
-    if (!selectedVideo) return null;
-
-    const quickActions = [
-      {
-        text: "사람이 있는 장면 찾아줘",
-        icon: "👥",
-        description: "사람 감지 + 바운딩 박스 표시"
-      },
-      {
-        text: "차가 있는 부분 보여줘",
-        icon: "🚗",
-        description: "차량 감지 + 바운딩 박스 표시"
-      },
-      {
-        text: "텍스트가 있는 장면은?",
-        icon: "📝",
-        description: "OCR 텍스트 추출 결과"
-      },
-      {
-        text: "주요 객체들을 알려줘",
-        icon: "🎯",
-        description: "감지된 주요 객체 분석"
-      },
-      {
-        text: "가장 중요한 장면은?",
-        icon: "⭐",
-        description: "하이라이트 장면 분석"
-      },
-      {
-        text: "동물이 있는 장면 찾아줘",
-        icon: "🐕",
-        description: "동물 감지 + 바운딩 박스"
-      }
-    ];
-
-    return (
-      <div className="quick-actions">
-        <h4>⚡ 빠른 질문</h4>
-        <div className="quick-actions-grid">
-          {quickActions.map((action, index) => (
-            <button
-              key={index}
-              className="quick-action-button"
-              onClick={() => setInputMessage(action.text)}
-              title={action.description}
-            >
-              <span className="action-icon">{action.icon}</span>
-              <span className="action-text">{action.text}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  const renderVideoInsights = () => {
-    if (!selectedVideo || !analysisInsights[selectedVideo.id]) return null;
-
-    return (
-      <div className="video-insights-panel">
-        <h4>💡 AI 분석 인사이트</h4>
-        <div className="insights-content">
-          <div className="insight-text">
-            {analysisInsights[selectedVideo.id]}
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   };
 
   return (
-    <div className="integrated-chat-page">
-      <div className="chat-container">
-        {/* 사이드바 */}
-        <div className="chat-sidebar">
-          <div className="sidebar-header">
-            <h3>🧠 고급 AI 채팅</h3>
-            <div className="chat-mode-selector">
-              <button 
-                className={`mode-button ${!advancedSearchMode ? 'active' : ''}`}
-                onClick={() => setAdvancedSearchMode(false)}
-              >
-                💬 일반 채팅
-              </button>
-              <button 
-                className={`mode-button ${advancedSearchMode ? 'active' : ''}`}
-                onClick={() => setAdvancedSearchMode(true)}
-              >
-                🔍 고급 검색
-              </button>
-            </div>
-          </div>
-
-          {/* 비디오 선택 */}
-          <div className="video-selection">
-            <h4>📹 분석된 비디오</h4>
-            {videos.length === 0 ? (
-              <div className="no-videos">
-                <p>분석된 비디오가 없습니다.</p>
-                <button onClick={() => navigate('/video-upload')}>
-                  비디오 업로드하기
-                </button>
-              </div>
-            ) : (
-              <div className="video-list">
-                {videos.map(video => (
-                  <div 
-                    key={video.id}
-                    className={`video-item ${selectedVideo?.id === video.id ? 'selected' : ''} ${video.advanced_features_used ? 'advanced' : ''}`}
-                    onClick={() => handleVideoSelect(video)}
-                  >
-                    <div className="video-info">
-                      <div className="video-name">{video.original_name}</div>
-                      <div className="video-stats">
-                        <span>🎯 {video.unique_objects || 0}개 객체</span>
-                        {video.analysis_type && (
-                          <span className="analysis-type">
-                            {video.analysis_type === 'comprehensive' ? '🧠' : 
-                             video.analysis_type === 'enhanced' ? '⚡' : '🔍'} 
-                            {video.analysis_type}
-                          </span>
-                        )}
-                      </div>
-                      {renderAdvancedFeatures(video)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* 고급 검색 필터 */}
-          {renderSearchFilters()}
-
-          {/* 빠른 액션 */}
-          {renderQuickActions()}
-
-          {/* 비디오 인사이트 */}
-          {renderVideoInsights()}
-        </div>
-
-        {/* 메인 채팅 영역 */}
-        <div className="chat-main">
-          {/* 채팅 헤더 */}
-          <div className="chat-header">
-            <div className="current-video-info">
-              {selectedVideo ? (
-                <>
-                  <span className="video-name">📹 {selectedVideo.original_name}</span>
-                  {selectedVideo.advanced_features_used && (
-                    <span className="advanced-badge">🚀 고급 분석 완료</span>
-                  )}
-                </>
-              ) : (
-                <span>비디오를 선택해주세요</span>
-              )}
-            </div>
-            <div className="chat-actions">
-              <button onClick={() => setMessages([])}>
-                🗑️ 채팅 지우기
-              </button>
-              <button onClick={() => navigate('/video-analysis')}>
-                📊 분석 현황
-              </button>
-            </div>
-          </div>
-
-          {/* 오류 표시 */}
-          {error && (
-            <div className="error-banner">
-              <span>⚠️ {error}</span>
-              <button onClick={() => setError(null)}>✕</button>
-            </div>
-          )}
-
-          {/* 메시지 영역 */}
-          <div className="messages-container">
-            {messages.map(renderMessage)}
-            {isLoading && (
-              <div className="message bot loading">
-                <div className="loading-indicator">
-                  <div className="loading-spinner"></div>
-                  <span>AI가 분석 중입니다...</span>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* 검색 결과 */}
-          {renderSearchResults()}
-
-          {/* 입력 영역 */}
-          <div className="input-container">
-            <div className="input-wrapper">
-              <textarea
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder={
-                  !selectedVideo ? "먼저 비디오를 선택해주세요..." :
-                  advancedSearchMode ? "고급 검색어를 입력하세요 (예: 사람이 있는 장면 찾아줘)" :
-                  "질문을 입력하세요 (예: 사람이 있는 장면 찾아줘)"
-                }
-                disabled={!selectedVideo}
-                rows={2}
-              />
-              <button 
-                onClick={sendMessage}
-                disabled={!inputMessage.trim() || !selectedVideo || isLoading}
-                className="send-button"
-              >
-                {isLoading ? '🔄' : '🚀'}
-              </button>
-            </div>
-            
-            <div className="input-hints">
-              {advancedSearchMode ? (
-                <span>💡 고급 검색 모드: CLIP, OCR, VQA 결과를 활용한 정밀 검색 + 바운딩 박스 표시</span>
-              ) : (
-                <span>💡 "사람이 있는 장면 찾아줘"처럼 입력하면 바운딩 박스와 함께 결과를 보여드립니다</span>
-              )}
-            </div>
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'Arial, sans-serif' }}>
+      {/* 헤더 */}
+      <div style={{ 
+        padding: '20px', 
+        backgroundColor: '#4a90e2', 
+        color: 'white',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+      }}>
+        <h1 style={{ margin: 0, fontSize: '24px' }}>🤖 AI 비디오 분석 채팅</h1>
+        
+        {/* 비디오 선택 */}
+        <div style={{ marginTop: '10px' }}>
+          <label style={{ fontSize: '14px', marginRight: '10px' }}>현재 비디오:</label>
+          <select 
+            value={currentVideo?.id || ''} 
+            onChange={(e) => {
+              const video = availableVideos.find(v => v.id === parseInt(e.target.value));
+              setCurrentVideo(video);
+            }}
+            style={{ 
+              padding: '5px 10px', 
+              borderRadius: '4px', 
+              border: 'none',
+              fontSize: '14px'
+            }}
+          >
+            {availableVideos.map(video => (
+              <option key={video.id} value={video.id}>
+                {video.original_name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* ✅ 프레임 뷰어 모달 (바운딩 박스 포함) */}
-      {frameViewerOpen && selectedFrame && (
-        <FrameViewer
-          frameUrl={selectedFrame.frameUrl}
-          frameData={selectedFrame.frameData}
-          bboxAnnotations={selectedFrame.bboxAnnotations}
-          frameId={selectedFrame.frameId}
-          timestamp={selectedFrame.timestamp}
-          onClose={closeFrameViewer}
+      {/* 채팅 영역 */}
+      <div 
+        ref={chatContainerRef}
+        style={{ 
+          flex: 1, 
+          overflowY: 'auto', 
+          padding: '20px',
+          backgroundColor: '#f8f9fa'
+        }}
+      >
+        {messages.length === 0 && (
+          <div style={{ 
+            textAlign: 'center',
+            color: '#666',
+            marginTop: '50px'
+          }}>
+            <h3>💬 AI와 대화를 시작해보세요!</h3>
+            <p>예시 질문:</p>
+            <div style={{ textAlign: 'left', maxWidth: '400px', margin: '0 auto' }}>
+              <p>• "이 영상에서 주황색 상의를 입은 남성이 지나간 장면을 추적해줘"</p>
+              <p>• "3:00~5:00 사이에 지나간 사람들의 성비 분포는?"</p>
+              <p>• "사람이 나오는 장면 찾아"</p>
+            </div>
+          </div>
+        )}
+
+        {messages.map((message) => (
+          <div 
+            key={message.id} 
+            style={{ 
+              marginBottom: '15px',
+              display: 'flex',
+              justifyContent: message.type === 'user' ? 'flex-end' : 'flex-start'
+            }}
+          >
+            <div style={{ 
+              maxWidth: '70%',
+              padding: '12px 16px',
+              borderRadius: '18px',
+              backgroundColor: message.type === 'user' ? '#4a90e2' : '#ffffff',
+              color: message.type === 'user' ? 'white' : '#333',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+              whiteSpace: 'pre-line'
+            }}>
+              <div>{message.content}</div>
+              
+              {/* 검색 결과 표시 */}
+              {renderSearchResults(message)}
+              
+              <div style={{ 
+                fontSize: '12px', 
+                opacity: 0.7, 
+                marginTop: '5px',
+                textAlign: 'right'
+              }}>
+                {formatTimestamp(message.timestamp)}
+                {message.searchType && (
+                  <span style={{ marginLeft: '10px' }}>
+                    {message.searchType === 'time-analysis' ? '⏰' : 
+                     message.searchType === 'object-tracking' ? '🎯' : 
+                     message.searchType === 'frame-search' ? '🖼️' : '💬'}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {loading && (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'flex-start',
+            marginBottom: '15px'
+          }}>
+            <div style={{ 
+              padding: '12px 16px',
+              borderRadius: '18px',
+              backgroundColor: '#ffffff',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+            }}>
+              <span>🤖 분석 중...</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 입력 영역 */}
+      <div style={{ 
+        padding: '20px',
+        backgroundColor: 'white',
+        borderTop: '1px solid #e0e0e0',
+        display: 'flex',
+        gap: '10px'
+      }}>
+        <input
+          type="text"
+          value={inputMessage}
+          onChange={(e) => setInputMessage(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder="메시지를 입력하세요..."
+          disabled={loading || !currentVideo}
+          style={{ 
+            flex: 1,
+            padding: '12px 16px',
+            borderRadius: '25px',
+            border: '1px solid #ddd',
+            fontSize: '16px',
+            outline: 'none'
+          }}
         />
-      )}
+        <button
+          onClick={handleSendMessage}
+          disabled={loading || !inputMessage.trim() || !currentVideo}
+          style={{ 
+            padding: '12px 24px',
+            borderRadius: '25px',
+            border: 'none',
+            backgroundColor: loading ? '#ccc' : '#4a90e2',
+            color: 'white',
+            fontSize: '16px',
+            cursor: loading ? 'not-allowed' : 'pointer'
+          }}
+        >
+          {loading ? '⏳' : '전송'}
+        </button>
+      </div>
+
+      {/* 하단 네비게이션 */}
+      <div style={{ 
+        padding: '10px 20px',
+        backgroundColor: '#f8f9fa',
+        borderTop: '1px solid #e0e0e0',
+        display: 'flex',
+        gap: '10px',
+        justifyContent: 'center'
+      }}>
+        <button onClick={() => navigate('/')} style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ddd', backgroundColor: 'white' }}>
+          🏠 홈
+        </button>
+        <button onClick={() => navigate('/video-analysis')} style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ddd', backgroundColor: 'white' }}>
+          📊 분석 현황
+        </button>
+        <button onClick={() => navigate('/video-upload')} style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ddd', backgroundColor: 'white' }}>
+          📁 업로드
+        </button>
+      </div>
     </div>
   );
 };

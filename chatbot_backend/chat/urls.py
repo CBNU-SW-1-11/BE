@@ -212,8 +212,11 @@ from .views import (
     EnhancedAnalyzeVideoView,
     AnalysisCapabilitiesView,
     EnhancedVideoChatView,
-    AnalysisProgressView
-    
+    AnalysisProgressView,
+    CrossVideoSearchView,
+    IntraVideoTrackingView,
+    TimeBasedAnalysisView,
+    AdvancedSearchAutoView,
 )
 
 from . import views
@@ -222,7 +225,11 @@ urlpatterns = [
     # ========== 고급 비디오 분석 관련 URL들 (우선순위) ==========
     
     # 기본 비디오 관련 엔드포인트들
-     path('videos/<int:video_id>/delete/', views.delete_video, name='delete_video'),
+    path('search/cross-video/', CrossVideoSearchView.as_view(), name='cross_video_search'),
+    path('search/object-tracking/', IntraVideoTrackingView.as_view(), name='object_tracking'),
+    path('analysis/time-based/', TimeBasedAnalysisView.as_view(), name='time_based_analysis'),
+    path('search/advanced/', AdvancedSearchAutoView.as_view(), name='advanced_search_auto'),
+    path('videos/<int:video_id>/delete/', views.delete_video, name='delete_video'),
     path('videos/<int:video_id>/', views.video_detail, name='video_detail'),
     path('videos/<int:video_id>/exists/', views.check_video_exists, name='check_video_exists'),
 
@@ -322,4 +329,6 @@ urlpatterns = [
     
     # 분석 기능 정보
     path('analysis_features/', views.AnalysisFeaturesView.as_view(), name='analysis-features'),
+
+    
 ]

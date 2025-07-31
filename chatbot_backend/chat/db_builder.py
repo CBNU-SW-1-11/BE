@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List, Dict, Any
 import torch
 from tqdm import tqdm
-
+from dotenv import load_dotenv
 from django.conf import settings
 
 # LangChain 관련 import
@@ -39,9 +39,13 @@ except ImportError:
 
 # 환경 변수 설정 (참고 모델 기반)
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-if "GROQ_API_KEY" not in os.environ:
-    os.environ["GROQ_API_KEY"] = "***REMOVED***"
+# .env 파일을 찾아 환경변수로 로드
 
+load_dotenv()  
+# 필수 키 확인
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    raise RuntimeError("환경변수 GROQ_API_KEY가 설정되지 않았습니다.")
 # 설정값 (참고 모델에서 가져옴)
 CHUNK_SIZE = 256
 CHUNK_OVERLAP = 128

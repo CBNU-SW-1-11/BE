@@ -1,101 +1,94 @@
-/* VideoUploadPage.css - 고급 비디오 업로드 페이지 스타일 */
+/* VideoUploadPage.css - Simplified Design */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f8f9fa;
+  color: #333;
+}
 
 .video-upload-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  padding: 20px 0;
+  padding: 20px;
 }
 
-/* ========== 업로드 컨테이너 ========== */
 .upload-container {
-  max-width: 1000px;
+  max-width: 900px;
   margin: 0 auto;
-  padding: 0 20px;
 }
 
-/* ========== 헤더 ========== */
+/* Header */
 .upload-header {
   text-align: center;
-  color: white;
   margin-bottom: 40px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e9ecef;
 }
 
 .upload-header h1 {
-  font-size: 2.5rem;
-  font-weight: 700;
-  margin: 0 0 15px 0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  font-size: 2rem;
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 10px;
 }
 
 .upload-header p {
-  font-size: 1.2rem;
-  opacity: 0.9;
-  margin: 0;
+  font-size: 1.1rem;
+  color: #6c757d;
 }
 
-/* ========== 분석 타입 선택 ========== */
-.analysis-selection-section {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
+/* Sections */
+.analysis-selection-section,
+.custom-analysis-section,
+.selected-features-summary,
+.features-introduction {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
   padding: 30px;
   margin-bottom: 30px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
-.analysis-selection-section h3 {
-  margin: 0 0 25px 0;
-  color: #374151;
-  font-size: 1.4rem;
+.analysis-selection-section h3,
+.custom-analysis-section h3,
+.selected-features-summary h4,
+.features-introduction h3 {
+  margin-bottom: 20px;
+  color: #495057;
+  font-size: 1.3rem;
   text-align: center;
 }
 
+/* Analysis Types Grid */
 .analysis-types-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 20px;
-  margin-bottom: 25px;
 }
 
 .analysis-type-card {
-  background: white;
-  border: 3px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 25px;
+  background: #f8f9fa;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
   cursor: pointer;
-  transition: all 0.3s ease;
   text-align: center;
-  position: relative;
-  overflow: hidden;
-}
-
-.analysis-type-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  transition: left 0.5s ease;
-}
-
-.analysis-type-card:hover::before {
-  left: 100%;
+  transition: all 0.2s ease;
 }
 
 .analysis-type-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  border-color: #667eea;
+  border-color: #007bff;
+  background: #fff;
 }
 
 .analysis-type-card.selected {
-  border-color: #667eea;
-  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+  border-color: #007bff;
+  background: #f0f8ff;
 }
 
 .analysis-type-header {
@@ -107,21 +100,21 @@
 }
 
 .analysis-icon {
-  font-size: 2rem;
+  font-size: 1.8rem;
 }
 
 .analysis-type-card h4 {
   margin: 0;
-  color: #374151;
-  font-size: 1.2rem;
+  color: #495057;
+  font-size: 1.1rem;
   font-weight: 600;
 }
 
 .analysis-description {
-  color: #6b7280;
+  color: #6c757d;
   font-size: 0.9rem;
   margin: 15px 0;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .analysis-features {
@@ -133,86 +126,47 @@
 }
 
 .feature-tag {
-  background: #f3f4f6;
-  color: #6b7280;
-  padding: 4px 10px;
+  background: #e9ecef;
+  color: #495057;
+  padding: 4px 8px;
   border-radius: 12px;
-  font-size: 0.7rem;
-  font-weight: 500;
+  font-size: 0.75rem;
 }
 
 .feature-tag.more {
-  background: #667eea;
+  background: #007bff;
   color: white;
-}
-
-.analysis-type-card.selected .feature-tag {
-  background: #dbeafe;
-  color: #1e40af;
 }
 
 .time-estimate {
   display: inline-block;
-  background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
+  background: #fff3cd;
+  color: #856404;
   padding: 6px 12px;
   border-radius: 15px;
   font-size: 0.8rem;
-  font-weight: 500;
+  border: 1px solid #ffeaa7;
 }
 
 .analysis-type-card.selected .time-estimate {
-  background: #667eea;
+  background: #007bff;
   color: white;
+  border-color: #007bff;
 }
 
-/* ========== 사용자 정의 분석 ========== */
-.custom-analysis-section {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  padding: 30px;
-  margin-bottom: 30px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  animation: slideDown 0.3s ease;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.custom-analysis-section h3 {
-  margin: 0 0 25px 0;
-  color: #374151;
-  font-size: 1.4rem;
-  text-align: center;
-}
-
+/* Custom Analysis Options */
 .custom-options-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 20px;
 }
 
 .custom-option-card {
-  background: white;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
   padding: 20px;
-  transition: all 0.3s ease;
   position: relative;
-}
-
-.custom-option-card:hover {
-  border-color: #667eea;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
 }
 
 .option-header {
@@ -232,14 +186,14 @@
 
 .option-info h5 {
   margin: 0 0 5px 0;
-  color: #374151;
+  color: #495057;
   font-size: 1rem;
   font-weight: 600;
 }
 
 .option-info p {
   margin: 0;
-  color: #6b7280;
+  color: #6c757d;
   font-size: 0.9rem;
   line-height: 1.4;
 }
@@ -263,7 +217,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #d1d5db;
+  background-color: #ccc;
   transition: 0.3s;
   border-radius: 24px;
 }
@@ -278,11 +232,10 @@
   background-color: white;
   transition: 0.3s;
   border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 input:checked + .toggle-slider {
-  background-color: #667eea;
+  background-color: #007bff;
 }
 
 input:checked + .toggle-slider:before {
@@ -293,31 +246,15 @@ input:checked + .toggle-slider:before {
   position: absolute;
   top: 10px;
   right: 10px;
-  background: #fef3c7;
-  color: #d97706;
+  background: #fff3cd;
+  color: #856404;
   padding: 3px 8px;
   border-radius: 10px;
-  font-size: 0.6rem;
-  font-weight: 500;
+  font-size: 0.7rem;
+  border: 1px solid #ffeaa7;
 }
 
-/* ========== 선택된 기능 요약 ========== */
-.selected-features-summary {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  padding: 25px;
-  margin-bottom: 30px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  text-align: center;
-}
-
-.selected-features-summary h4 {
-  margin: 0 0 20px 0;
-  color: #374151;
-  font-size: 1.2rem;
-}
-
+/* Selected Features Summary */
 .features-list {
   display: flex;
   flex-wrap: wrap;
@@ -327,98 +264,56 @@ input:checked + .toggle-slider:before {
 }
 
 .selected-feature {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #007bff;
   color: white;
-  padding: 8px 16px;
+  padding: 6px 12px;
   border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  font-size: 0.85rem;
 }
 
 .analysis-estimate {
-  color: #6b7280;
+  color: #6c757d;
   font-size: 0.9rem;
-}
-
-/* ========== 업로드 영역 ========== */
-.upload-area {
-  background: rgba(255, 255, 255, 0.95);
-  border: 3px dashed #d1d5db;
-  border-radius: 16px;
-  padding: 60px 30px;
   text-align: center;
-  transition: all 0.3s ease;
+}
+
+/* Upload Area */
+.upload-area {
+  background: #fff;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 50px 30px;
+  text-align: center;
   margin-bottom: 30px;
-  backdrop-filter: blur(10px);
-  position: relative;
-  overflow: hidden;
-}
-
-.upload-area::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(45deg, transparent 30%, rgba(102, 126, 234, 0.05) 50%, transparent 70%);
-  animation: shimmer 3s infinite;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-@keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-
-.upload-area:hover::before {
-  opacity: 1;
+  transition: all 0.2s ease;
 }
 
 .upload-area.drag-active {
-  border-color: #667eea;
-  background: rgba(102, 126, 234, 0.1);
-  transform: scale(1.02);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+  border-color: #007bff;
+  background: #f0f8ff;
 }
 
 .upload-area.file-selected {
-  border-color: #10b981;
-  background: rgba(16, 185, 129, 0.1);
+  border-color: #28a745;
+  background: #f8fff9;
 }
 
 .upload-icon {
-  font-size: 4rem;
-  color: #667eea;
+  font-size: 3rem;
+  color: #6c757d;
   margin-bottom: 20px;
-  animation: bounce 2s infinite;
-}
-
-@keyframes bounce {
-  0%, 20%, 50%, 80%, 100% {
-    transform: translateY(0);
-  }
-  40% {
-    transform: translateY(-10px);
-  }
-  60% {
-    transform: translateY(-5px);
-  }
 }
 
 .upload-area h3 {
-  color: #374151;
-  font-size: 1.3rem;
-  margin: 0 0 15px 0;
-  font-weight: 600;
+  color: #495057;
+  font-size: 1.2rem;
+  margin-bottom: 10px;
 }
 
 .upload-area p {
-  color: #6b7280;
+  color: #6c757d;
   font-size: 1rem;
-  margin: 0 0 25px 0;
+  margin-bottom: 25px;
 }
 
 .file-input {
@@ -426,37 +321,34 @@ input:checked + .toggle-slider:before {
 }
 
 .file-label {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #007bff;
   color: white;
-  padding: 14px 28px;
-  border-radius: 10px;
+  padding: 12px 24px;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
-  transition: all 0.3s ease;
   display: inline-block;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  transition: background-color 0.2s ease;
 }
 
 .file-label:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  background: #0056b3;
 }
 
-/* ========== 선택된 파일 ========== */
+/* Selected File */
 .selected-file {
   display: flex;
   align-items: center;
   gap: 20px;
-  background: white;
-  border-radius: 12px;
-  padding: 25px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
   position: relative;
 }
 
 .file-icon {
-  font-size: 3rem;
-  color: #10b981;
+  font-size: 2.5rem;
+  color: #28a745;
 }
 
 .file-info {
@@ -465,44 +357,41 @@ input:checked + .toggle-slider:before {
 
 .file-info h4 {
   margin: 0 0 10px 0;
-  color: #374151;
-  font-size: 1.2rem;
-  font-weight: 600;
+  color: #495057;
+  font-size: 1.1rem;
 }
 
 .file-info p {
   margin: 5px 0;
-  color: #6b7280;
+  color: #6c757d;
   font-size: 0.9rem;
 }
 
 .remove-file {
-  background: #f87171;
+  background: #dc3545;
   color: white;
   border: none;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   cursor: pointer;
-  font-size: 1.2rem;
-  transition: all 0.3s ease;
+  font-size: 1.1rem;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .remove-file:hover {
-  background: #ef4444;
-  transform: scale(1.1);
+  background: #c82333;
 }
 
-/* ========== 자동 분석 옵션 ========== */
+/* Auto Analysis Option */
 .auto-analysis-option {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
   padding: 20px;
   margin-bottom: 30px;
-  backdrop-filter: blur(10px);
   text-align: center;
 }
 
@@ -513,23 +402,21 @@ input:checked + .toggle-slider:before {
   gap: 10px;
   cursor: pointer;
   font-size: 1rem;
-  color: #374151;
+  color: #495057;
 }
 
 .checkbox-label input {
   width: 18px;
   height: 18px;
-  accent-color: #667eea;
 }
 
-/* ========== 업로드 진행률 ========== */
+/* Upload Progress */
 .upload-progress {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
-  padding: 25px;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
   margin-bottom: 30px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .progress-header {
@@ -540,76 +427,54 @@ input:checked + .toggle-slider:before {
 }
 
 .progress-header span:first-child {
-  color: #374151;
+  color: #495057;
   font-weight: 500;
 }
 
 .progress-header span:last-child {
-  color: #667eea;
+  color: #007bff;
   font-weight: 600;
-  font-size: 1.1rem;
 }
 
 .progress-bar {
-  height: 12px;
-  background: #e5e7eb;
-  border-radius: 6px;
+  height: 10px;
+  background: #e9ecef;
+  border-radius: 5px;
   overflow: hidden;
-  position: relative;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #667eea, #764ba2);
-  border-radius: 6px;
+  background: #007bff;
   transition: width 0.3s ease;
-  position: relative;
 }
 
-.progress-fill::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  animation: progressShimmer 2s infinite;
-}
-
-@keyframes progressShimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-
-/* ========== 메시지들 ========== */
+/* Messages */
 .error-message,
 .success-message {
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 30px;
+  padding: 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
-  gap: 15px;
-  backdrop-filter: blur(10px);
+  gap: 10px;
 }
 
 .error-message {
-  background: rgba(254, 242, 242, 0.95);
-  border: 1px solid #fecaca;
-  color: #dc2626;
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
 }
 
 .success-message {
-  background: rgba(240, 253, 244, 0.95);
-  border: 1px solid #bbf7d0;
-  color: #059669;
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
 }
 
 .error-icon,
 .success-icon {
-  font-size: 1.5rem;
-  min-width: 24px;
+  font-size: 1.3rem;
 }
 
 .success-message div h4 {
@@ -619,10 +484,9 @@ input:checked + .toggle-slider:before {
 
 .success-message div p {
   margin: 0;
-  opacity: 0.9;
 }
 
-/* ========== 버튼 영역 ========== */
+/* Button Area */
 .button-area {
   display: flex;
   flex-direction: column;
@@ -632,225 +496,124 @@ input:checked + .toggle-slider:before {
 }
 
 .upload-button {
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: #28a745;
   color: white;
   border: none;
-  padding: 16px 32px;
-  border-radius: 12px;
-  font-size: 1.1rem;
+  padding: 15px 30px;
+  border-radius: 6px;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+  transition: background-color 0.2s ease;
   min-width: 200px;
 }
 
 .upload-button:hover:not(:disabled) {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+  background: #218838;
 }
 
 .upload-button:disabled {
-  background: #9ca3af;
+  background: #6c757d;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
 .secondary-button {
-  background: rgba(255, 255, 255, 0.9);
-  color: #667eea;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  padding: 12px 24px;
-  border-radius: 10px;
-  font-weight: 500;
+  background: #fff;
+  color: #007bff;
+  border: 1px solid #007bff;
+  padding: 10px 20px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.3s ease;
   text-decoration: none;
-  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
 }
 
 .secondary-button:hover {
-  background: white;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+  background: #007bff;
+  color: white;
 }
 
-/* ========== 고급 분석 기능 소개 ========== */
-.features-introduction {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  padding: 40px;
-  margin-bottom: 40px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.features-introduction h3 {
-  margin: 0 0 30px 0;
-  color: #374151;
-  font-size: 1.5rem;
-  text-align: center;
-}
-
+/* Features Showcase */
 .features-showcase {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 25px;
 }
 
 .feature-showcase {
   display: flex;
-  gap: 20px;
-  padding: 25px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
-}
-
-.feature-showcase:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  gap: 15px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
 }
 
 .feature-showcase .feature-icon {
-  font-size: 2.5rem;
-  min-width: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 2rem;
+  min-width: 50px;
+  color: #007bff;
+}
+
+.feature-content {
+  flex: 1;
 }
 
 .feature-content h4 {
-  margin: 0 0 10px 0;
-  color: #374151;
-  font-size: 1.1rem;
+  margin: 0 0 8px 0;
+  color: #495057;
+  font-size: 1rem;
   font-weight: 600;
 }
 
 .feature-content p {
   margin: 0;
-  color: #6b7280;
-  line-height: 1.5;
+  color: #6c757d;
+  line-height: 1.4;
   font-size: 0.9rem;
 }
 
-/* ========== 사용 안내 (기존) ========== */
-.usage-guide {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  padding: 40px;
-  margin-bottom: 40px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.usage-guide h3 {
-  margin: 0 0 30px 0;
-  color: #374151;
-  font-size: 1.5rem;
-  text-align: center;
-}
-
-.guide-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
-}
-
-.step {
-  display: flex;
-  gap: 20px;
-  align-items: flex-start;
-}
-
-.step-number {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.step-content h4 {
-  margin: 0 0 8px 0;
-  color: #374151;
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.step-content p {
-  margin: 0;
-  color: #6b7280;
-  line-height: 1.5;
-}
-
-/* ========== 네비게이션 ========== */
+/* Navigation */
 .navigation {
   display: flex;
   justify-content: center;
   gap: 15px;
   margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #dee2e6;
 }
 
 .nav-button {
-  background: rgba(255, 255, 255, 0.9);
-  color: #667eea;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  padding: 12px 24px;
-  border-radius: 10px;
-  font-weight: 500;
+  background: #fff;
+  color: #007bff;
+  border: 1px solid #007bff;
+  padding: 10px 20px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.3s ease;
   text-decoration: none;
-  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
 }
 
 .nav-button:hover {
-  background: white;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+  background: #007bff;
+  color: white;
 }
 
-/* ========== 반응형 디자인 ========== */
-@media (max-width: 1024px) {
-  .analysis-types-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .features-showcase {
-    grid-template-columns: 1fr;
-  }
-}
-
+/* Responsive Design */
 @media (max-width: 768px) {
-  .video-upload-page {
-    padding: 10px 0;
-  }
-  
   .upload-container {
     padding: 0 15px;
   }
   
   .upload-header h1 {
-    font-size: 2rem;
-  }
-  
-  .upload-header p {
-    font-size: 1rem;
+    font-size: 1.6rem;
   }
   
   .analysis-selection-section,
   .custom-analysis-section,
-  .features-introduction,
-  .usage-guide {
-    padding: 25px 20px;
+  .selected-features-summary,
+  .features-introduction {
+    padding: 20px;
   }
   
   .analysis-types-grid {
@@ -868,156 +631,77 @@ input:checked + .toggle-slider:before {
   }
   
   .upload-area {
-    padding: 40px 20px;
-  }
-  
-  .upload-area h3 {
-    font-size: 1.1rem;
-  }
-  
-  .upload-area p {
-    font-size: 0.9rem;
+    padding: 30px 20px;
   }
   
   .features-showcase {
-    gap: 20px;
+    grid-template-columns: 1fr;
   }
   
   .feature-showcase {
     flex-direction: column;
     text-align: center;
-    gap: 15px;
-  }
-  
-  .step {
-    flex-direction: column;
-    gap: 15px;
-    text-align: center;
+    gap: 10px;
   }
   
   .navigation {
     flex-direction: column;
     align-items: center;
   }
-}
-
-@media (max-width: 480px) {
-  .upload-header h1 {
-    font-size: 1.8rem;
-  }
-  
-  .analysis-type-card {
-    padding: 20px 15px;
-  }
-  
-  .custom-option-card {
-    padding: 15px;
-  }
-  
-  .upload-area {
-    padding: 30px 15px;
-  }
-  
-  .upload-icon {
-    font-size: 3rem;
-  }
-  
-  .file-label {
-    padding: 12px 24px;
-    font-size: 0.9rem;
-  }
-  
-  .button-area {
-    margin-bottom: 30px;
-  }
-  
-  .upload-button {
-    width: 100%;
-    padding: 14px 20px;
-    font-size: 1rem;
-  }
-  
-  .secondary-button {
-    width: 100%;
-    padding: 10px 20px;
-  }
   
   .nav-button {
     width: 100%;
-    padding: 10px 20px;
+    text-align: center;
   }
 }
 
-/* ========== 다크 모드 지원 ========== */
-@media (prefers-color-scheme: dark) {
+@media (max-width: 480px) {
   .video-upload-page {
-    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    padding: 10px;
+  }
+  
+  .upload-header h1 {
+    font-size: 1.4rem;
+  }
+  
+  .upload-header p {
+    font-size: 1rem;
   }
   
   .analysis-selection-section,
   .custom-analysis-section,
   .selected-features-summary,
-  .upload-area,
-  .auto-analysis-option,
-  .upload-progress,
-  .features-introduction,
-  .usage-guide {
-    background: rgba(31, 41, 55, 0.95);
-    color: #f9fafb;
+  .features-introduction {
+    padding: 15px;
   }
   
   .analysis-type-card,
-  .custom-option-card,
-  .selected-file,
-  .feature-showcase {
-    background: #374151;
-    border-color: #4b5563;
-    color: #f9fafb;
+  .custom-option-card {
+    padding: 15px;
   }
   
   .upload-area {
-    border-color: #4b5563;
+    padding: 25px 15px;
   }
   
-  .upload-area.drag-active {
-    background: rgba(102, 126, 234, 0.2);
-  }
-}
-
-/* ========== 고성능 애니메이션 ========== */
-.analysis-type-card,
-.custom-option-card,
-.feature-showcase,
-.upload-button,
-.secondary-button,
-.nav-button {
-  will-change: transform;
-}
-
-/* ========== 접근성 개선 ========== */
-.analysis-type-card:focus,
-.upload-button:focus,
-.secondary-button:focus,
-.nav-button:focus {
-  outline: 3px solid rgba(102, 126, 234, 0.5);
-  outline-offset: 2px;
-}
-
-.file-label:focus {
-  outline: 3px solid rgba(102, 126, 234, 0.5);
-  outline-offset: 2px;
-}
-
-/* ========== 인쇄 스타일 ========== */
-@media print {
-  .video-upload-page {
-    background: white;
-    color: black;
+  .upload-icon {
+    font-size: 2.5rem;
   }
   
-  .upload-area,
-  .button-area,
-  .navigation {
-    display: none;
+  .upload-area h3 {
+    font-size: 1rem;
+  }
+  
+  .upload-area p {
+    font-size: 0.9rem;
+  }
+  
+  .upload-button {
+    width: 100%;
+    font-size: 0.9rem;
+  }
+  
+  .secondary-button {
+    width: 100%;
   }
 }

@@ -367,7 +367,7 @@
 }
 
 .stat-card {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: white;
   color: white;
   border-radius: 12px;
   padding: 25px;
@@ -377,7 +377,7 @@
 
 .stat-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+
 }
 
 .stat-number {

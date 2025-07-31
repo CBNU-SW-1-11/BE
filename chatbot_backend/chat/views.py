@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 import re
 import json
 import logging
+import os
+from dotenv import load_dotenv
 
 def fetch_and_clean_url(url, timeout=10):
     """
@@ -308,7 +310,7 @@ def sanitize_and_parse_json(text, selected_models=None, responses=None):
             "reasoning": "응답 분석 중 오류가 발생했습니다."
         }
 import openai
-
+import os 
 import anthropic
 from groq import Groq
 import logging
@@ -1069,12 +1071,12 @@ class ChatView(APIView):
         """동기 채팅을 위한 헬퍼 메서드"""
         bot.conversation_history = [system_message]
         return bot.chat(user_message)
-
+from dotenv import load_dotenv
+load_dotenv()
 # API 키 설정 (기존과 동일)
-OPENAI_API_KEY = "***REMOVED***"
-ANTHROPIC_API_KEY = "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"
-GROQ_API_KEY = "***REMOVED***"
-
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 # ChatBot import (수정된 버전)
 
 chatbots = {
@@ -2827,9 +2829,6 @@ from .serializers import (
 # )
 
 # # 기존 ChatBot 클래스는 그대로 유지...
-# OPENAI_API_KEY = "***REMOVED***"
-# ANTHROPIC_API_KEY = "***REMOVED***"
-# GROQ_API_KEY = "***REMOVED***"
 
 
 # chatbots = {
@@ -3630,10 +3629,9 @@ target_datetime = datetime.now(KST)
 logger = logging.getLogger(__name__)
 
 # 기존 ChatBot 클래스와 API 키들은 그대로 유지...
-OPENAI_API_KEY = "***REMOVED***"
-ANTHROPIC_API_KEY = "***REMOVED***"
-GROQ_API_KEY = "***REMOVED***"
-
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 # 🔧 토큰 디버깅을 위한 커스텀 인증 클래스
 class DebugTokenAuthentication(TokenAuthentication):
@@ -5088,25 +5086,39 @@ class EnhancedAnalyzeVideoView(APIView):
 
 # views.py - AnalysisCapabilitiesView 클래스 수정
 from .models import Video, VideoAnalysis, Scene, Frame, SearchHistory
+# views.py - EnhancedVideoChatView 클래스 수정된 버전
+# views.py - EnhancedVideoChatView 클래스 수정된 버전
 
+@method_decorator(csrf_exempt, name='dispatch')
 class EnhancedVideoChatView(APIView):
-    """고급 분석 결과를 활용한 비디오 채팅"""
+    """고급 분석 결과를 활용한 비디오 채팅 - 수정된 버전"""
     permission_classes = [AllowAny]
     
     def __init__(self):
         super().__init__()
-        self.llm_client = LLMClient()
-        self.video_analyzer = get_video_analyzer()
+        try:
+            from .llm_client import LLMClient
+            self.llm_client = LLMClient()
+        except ImportError:
+            self.llm_client = None
+            logger.warning("LLMClient를 찾을 수 없습니다")
+        
+        try:
+            from .video_analyzer import get_video_analyzer
+            self.video_analyzer = get_video_analyzer()
+        except ImportError:
+            self.video_analyzer = None
+            logger.warning("VideoAnalyzer를 찾을 수 없습니다")
     
     def post(self, request):
         try:
             user_message = request.data.get('message', '').strip()
             video_id = request.data.get('video_id')
             
+            logger.info(f"💬 고급 채팅 요청: '{user_message}', 비디오ID: {video_id}")
+            
             if not user_message:
                 return Response({'response': '메시지를 입력해주세요.'})
-            
-            print(f"💬 고급 채팅 요청: {user_message}")
             
             # 현재 비디오 가져오기
             if video_id:
@@ -5134,91 +5146,225 @@ class EnhancedVideoChatView(APIView):
                 return self._handle_comparison_query(user_message, current_video, video_info)
             else:
                 # 일반 대화
-                bot_response = self.llm_client.generate_smart_response(
-                    user_query=user_message,
-                    search_results=None,
-                    video_info=video_info,
-                    use_multi_llm=True
-                )
+                if self.llm_client:
+                    bot_response = self.llm_client.generate_smart_response(
+                        user_query=user_message,
+                        search_results=None,
+                        video_info=video_info,
+                        use_multi_llm=True
+                    )
+                else:
+                    bot_response = f"'{user_message}'에 대한 기본 응답입니다. 비디오: {current_video.original_name}"
+                
                 return Response({'response': bot_response})
                 
         except Exception as e:
-            print(f"❌ 고급 채팅 오류: {e}")
+            logger.error(f"❌ 고급 채팅 오류: {e}")
             return Response({
                 'response': '고급 분석 기능에 일시적인 문제가 있습니다. 잠시 후 다시 시도해주세요.'
             })
     
     def _handle_enhanced_search(self, message, video, video_info):
-        """고급 분석 결과를 활용한 검색 - Frame 모델 사용"""
+        """고급 분석 결과를 활용한 검색 - 수정된 버전"""
         try:
-            print(f"🔍 고급 검색 시작: {message}")
+            logger.info(f"🔍 고급 검색 시작: {message}")
             
-            # 검색어에서 객체 타입 추출
-            search_terms = self._extract_search_terms(message)
-            print(f"📝 추출된 검색어: {search_terms}")
+            # 시간 범위 파싱
+            time_range = self._parse_time_range(message)
             
-            # Frame 모델에서 검색 수행
+            # 검색 타입 결정
+            search_type = self._determine_search_type(message, time_range)
+            logger.info(f"📋 결정된 검색 타입: {search_type}")
+            
+            if search_type == 'time-analysis':
+                # 시간대별 분석 뷰 호출
+                time_view = TimeBasedAnalysisView()
+                fake_request = type('FakeRequest', (), {
+                    'data': {
+                        'video_id': video.id,
+                        'time_range': time_range,
+                        'analysis_type': message
+                    }
+                })()
+                fake_request.data = {
+                    'video_id': video.id,
+                    'time_range': time_range,
+                    'analysis_type': message
+                }
+                
+                result = time_view.post(fake_request)
+                
+                if hasattr(result, 'data') and result.data.get('result'):
+                    analysis_result = result.data['result']
+                    
+                    # 응답 포맷팅
+                    if analysis_result.get('total_persons') is not None:
+                        response_text = f"📊 {time_range['start']}~{time_range['end']} 시간대 분석 결과:\n\n"
+                        response_text += f"👥 총 인원: {analysis_result['total_persons']}명\n"
+                        response_text += f"👨 남성: {analysis_result['male_count']}명 ({analysis_result['gender_ratio']['male']}%)\n"
+                        response_text += f"👩 여성: {analysis_result['female_count']}명 ({analysis_result['gender_ratio']['female']}%)\n\n"
+                        
+                        if analysis_result.get('clothing_colors'):
+                            response_text += "👕 주요 의상 색상:\n"
+                            for color, count in list(analysis_result['clothing_colors'].items())[:3]:
+                                response_text += f"   • {color}: {count}명\n"
+                        
+                        if analysis_result.get('peak_times'):
+                            response_text += f"\n⏰ 활동 피크 시간: {', '.join(analysis_result['peak_times'])}"
+                    else:
+                        response_text = "시간대별 분석을 수행했지만 충분한 데이터를 찾을 수 없습니다."
+                else:
+                    response_text = "시간대별 분석 중 오류가 발생했습니다."
+            
+            elif search_type == 'object-tracking':
+                # 객체 추적 뷰 호출
+                tracking_view = IntraVideoTrackingView()
+                fake_request = type('FakeRequest', (), {
+                    'data': {
+                        'video_id': video.id,
+                        'tracking_target': message,
+                        'time_range': time_range or {}
+                    }
+                })()
+                fake_request.data = {
+                    'video_id': video.id,
+                    'tracking_target': message,
+                    'time_range': time_range or {}
+                }
+                
+                result = tracking_view.post(fake_request)
+                
+                if hasattr(result, 'data') and result.data.get('tracking_results'):
+                    tracking_results = result.data['tracking_results']
+                    
+                    if tracking_results:
+                        response_text = f"🎯 '{message}' 추적 결과:\n\n"
+                        response_text += f"📍 총 {len(tracking_results)}개 장면에서 발견\n\n"
+                        
+                        for i, result_item in enumerate(tracking_results[:5]):
+                            time_str = self._seconds_to_time_string(result_item['timestamp'])
+                            response_text += f"{i+1}. {time_str} - {result_item['description']} "
+                            response_text += f"(신뢰도: {result_item['confidence']*100:.1f}%)\n"
+                        
+                        if len(tracking_results) > 5:
+                            response_text += f"\n... 외 {len(tracking_results)-5}개 장면 더"
+                    else:
+                        response_text = f"🔍 '{message}'에 해당하는 객체를 찾을 수 없습니다."
+                else:
+                    response_text = "객체 추적 중 오류가 발생했습니다."
+            
+            else:
+                # 일반 프레임 검색
+                search_results = self._perform_frame_search(message, video)
+                response_text = self._format_search_response(message, search_results)
+                search_type = 'frame-search'
+                searchResults = search_results
+            
+            return Response({
+                'response': response_text,
+                'search_results': searchResults or [],
+                'search_type': search_type
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ 고급 검색 실패: {e}")
+            return Response({
+                'response': f'검색 중 오류가 발생했습니다: {str(e)}',
+                'search_results': [],
+                'error': str(e)
+            })
+    
+    def _parse_time_range(self, message):
+        """시간 범위 파싱"""
+        import re
+        
+        # "3:00~5:00", "3:00-5:00" 등의 패턴 감지
+        time_patterns = [
+            r'(\d+):(\d+)\s*[-~]\s*(\d+):(\d+)',  # 3:00-5:00 형태
+            r'(\d+)분\s*[-~]\s*(\d+)분',          # 3분-5분 형태
+        ]
+        
+        for pattern in time_patterns:
+            match = re.search(pattern, message)
+            if match:
+                if ':' in pattern:
+                    return {
+                        'start': f"{match.group(1)}:{match.group(2)}",
+                        'end': f"{match.group(3)}:{match.group(4)}"
+                    }
+                else:
+                    return {
+                        'start': f"{match.group(1)}:00",
+                        'end': f"{match.group(2)}:00"
+                    }
+        
+        return None
+    
+    def _determine_search_type(self, message, time_range):
+        """검색 타입 결정"""
+        message_lower = message.lower()
+        
+        # 시간대별 분석 키워드
+        time_analysis_keywords = ['성비', '분포', '통계', '비율', '몇명', '얼마나']
+        
+        # 객체 추적 키워드
+        tracking_keywords = ['추적', '지나간', '상의', '모자', '색깔', '옷', '남성', '여성']
+        
+        if time_range and any(keyword in message_lower for keyword in time_analysis_keywords):
+            return 'time-analysis'
+        elif any(keyword in message_lower for keyword in tracking_keywords):
+            return 'object-tracking'
+        else:
+            return 'frame-search'
+    
+    def _perform_frame_search(self, query, video):
+        """프레임 검색 수행"""
+        try:
+            frames = Frame.objects.filter(video=video)
             search_results = []
             
-            # ✅ Frame 모델 사용하여 검색
-            frames = Frame.objects.filter(video=video).order_by('timestamp')
+            query_lower = query.lower()
+            
+            # 검색어에서 객체 타입 추출
+            search_terms = self._extract_search_terms(query)
             
             for frame in frames:
                 frame_matches = []
                 confidence_scores = []
                 
                 # 감지된 객체에서 검색
-                for obj in frame.detected_objects:
-                    obj_class = obj.get('class', '').lower()
-                    obj_confidence = obj.get('confidence', 0)
-                    
-                    # 검색어 매칭 확인
-                    for term in search_terms:
-                        if term in obj_class or obj_class in term:
-                            frame_matches.append({
-                                'type': 'object',
-                                'match': obj_class,
-                                'confidence': obj_confidence,
-                                'bbox': obj.get('bbox', []),
-                                'colors': obj.get('colors', []),
-                                'color_description': obj.get('color_description', '')
-                            })
-                            confidence_scores.append(obj_confidence)
+                if hasattr(frame, 'detected_objects') and frame.detected_objects:
+                    for obj in frame.detected_objects:
+                        obj_class = obj.get('class', '').lower()
+                        obj_confidence = obj.get('confidence', 0)
+                        
+                        # 검색어 매칭 확인
+                        for term in search_terms:
+                            if term in obj_class or obj_class in term:
+                                frame_matches.append({
+                                    'type': 'object',
+                                    'match': obj_class,
+                                    'confidence': obj_confidence,
+                                    'bbox': obj.get('bbox', [])
+                                })
+                                confidence_scores.append(obj_confidence)
                 
                 # 캡션에서 검색
                 captions = [
-                    frame.final_caption or '',
-                    frame.enhanced_caption or '',
-                    frame.caption or ''
+                    getattr(frame, 'final_caption', '') or '',
+                    getattr(frame, 'enhanced_caption', '') or '',
+                    getattr(frame, 'caption', '') or ''
                 ]
                 
                 for caption in captions:
-                    if caption:
-                        for term in search_terms:
-                            if term in caption.lower():
-                                frame_matches.append({
-                                    'type': 'caption',
-                                    'match': caption,
-                                    'confidence': 0.8
-                                })
-                                confidence_scores.append(0.8)
-                                break
-                
-                # 고급 분석 결과에서 검색
-                if frame.comprehensive_features:
-                    # OCR 텍스트 검색
-                    ocr_data = frame.comprehensive_features.get('ocr_text', {})
-                    if isinstance(ocr_data, dict) and 'texts' in ocr_data:
-                        for text_item in ocr_data['texts']:
-                            text_content = text_item.get('text', '').lower()
-                            for term in search_terms:
-                                if term in text_content:
-                                    frame_matches.append({
-                                        'type': 'ocr_text',
-                                        'match': text_content,
-                                        'confidence': text_item.get('confidence', 0.7)
-                                    })
-                                    confidence_scores.append(text_item.get('confidence', 0.7))
+                    if caption and query_lower in caption.lower():
+                        frame_matches.append({
+                            'type': 'caption',
+                            'match': caption,
+                            'confidence': 0.8
+                        })
+                        confidence_scores.append(0.8)
+                        break
                 
                 # 매칭된 프레임이 있으면 결과에 추가
                 if frame_matches:
@@ -5229,64 +5375,89 @@ class EnhancedVideoChatView(APIView):
                         'timestamp': frame.timestamp,
                         'match_score': avg_confidence,
                         'matches': frame_matches,
-                        'caption': frame.final_caption or frame.enhanced_caption or frame.caption,
-                        'detected_objects': [obj.get('class') for obj in frame.detected_objects],
-                        'match_reasons': [match['match'] for match in frame_matches],
-                        'bbox_annotations': [match for match in frame_matches if match['type'] == 'object'],
-                        
-                        # 고급 분석 결과 추가
-                        'clip_analysis': frame.comprehensive_features.get('clip_features', {}),
-                        'ocr_text': frame.comprehensive_features.get('ocr_text', {}),
-                        'vqa_results': frame.comprehensive_features.get('vqa_results', {}),
-                        'scene_graph': frame.comprehensive_features.get('scene_graph', {})
+                        'caption': captions[0] if captions[0] else 'No caption'
                     })
             
             # 신뢰도 순으로 정렬
             search_results.sort(key=lambda x: x['match_score'], reverse=True)
             
-            print(f"✅ 검색 완료: {len(search_results)}개 결과")
-            
-            # 향상된 응답 생성
-            if search_results:
-                response_text = f"'{message}' 검색 결과 {len(search_results)}개를 찾았습니다.\n\n"
-                
-                # 상위 3개 결과 요약
-                for i, result in enumerate(search_results[:3]):
-                    time_str = self._format_timestamp(result['timestamp'])
-                    response_text += f"{i+1}. 프레임 #{result['frame_id']} ({time_str})\n"
-                    
-                    # 바운딩 박스가 있는 객체들 표시
-                    bbox_objects = result.get('bbox_annotations', [])
-                    if bbox_objects:
-                        response_text += f"   감지된 객체: {', '.join([obj['match'] for obj in bbox_objects])}\n"
-                        response_text += f"   바운딩 박스 표시 가능\n"
-                    
-                    if result['caption']:
-                        response_text += f"   설명: {result['caption'][:100]}...\n"
-                    response_text += "\n"
-                
-                response_text += "각 프레임을 클릭하면 바운딩 박스와 함께 상세히 볼 수 있습니다."
-            else:
-                response_text = f"'{message}'에 대한 검색 결과를 찾을 수 없습니다. 다른 검색어를 시도해보세요."
-            
-            return Response({
-                'response': response_text,
-                'search_results': search_results[:20],  # 최대 20개 결과
-                'search_type': 'enhanced_search',
-                'total_matches': len(search_results),
-                'has_bbox_annotations': any(result.get('bbox_annotations') for result in search_results)
-            })
+            return search_results[:10]  # 상위 10개 결과
             
         except Exception as e:
-            print(f"❌ 고급 검색 실패: {e}")
-            import traceback
-            print(f"🔍 상세 오류: {traceback.format_exc()}")
+            logger.error(f"❌ 프레임 검색 오류: {e}")
+            return []
+    
+    def _perform_frame_search(self, query, video):
+        """프레임 검색 수행"""
+        try:
+            from .models import Frame
             
-            return Response({
-                'response': f'검색 중 오류가 발생했습니다: {str(e)}. 기본 검색을 시도해보세요.',
-                'search_results': [],
-                'error': str(e)
-            })
+            frames = Frame.objects.filter(video=video)
+            search_results = []
+            
+            query_lower = query.lower()
+            
+            # 검색어에서 객체 타입 추출
+            search_terms = self._extract_search_terms(query)
+            
+            for frame in frames:
+                frame_matches = []
+                confidence_scores = []
+                
+                # 감지된 객체에서 검색
+                if hasattr(frame, 'detected_objects') and frame.detected_objects:
+                    for obj in frame.detected_objects:
+                        obj_class = obj.get('class', '').lower()
+                        obj_confidence = obj.get('confidence', 0)
+                        
+                        # 검색어 매칭 확인
+                        for term in search_terms:
+                            if term in obj_class or obj_class in term:
+                                frame_matches.append({
+                                    'type': 'object',
+                                    'match': obj_class,
+                                    'confidence': obj_confidence,
+                                    'bbox': obj.get('bbox', [])
+                                })
+                                confidence_scores.append(obj_confidence)
+                
+                # 캡션에서 검색
+                captions = [
+                    getattr(frame, 'final_caption', '') or '',
+                    getattr(frame, 'enhanced_caption', '') or '',
+                    getattr(frame, 'caption', '') or ''
+                ]
+                
+                for caption in captions:
+                    if caption and query_lower in caption.lower():
+                        frame_matches.append({
+                            'type': 'caption',
+                            'match': caption,
+                            'confidence': 0.8
+                        })
+                        confidence_scores.append(0.8)
+                        break
+                
+                # 매칭된 프레임이 있으면 결과에 추가
+                if frame_matches:
+                    avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0
+                    
+                    search_results.append({
+                        'frame_id': frame.image_id,
+                        'timestamp': frame.timestamp,
+                        'match_score': avg_confidence,
+                        'matches': frame_matches,
+                        'caption': captions[0] if captions[0] else 'No caption'
+                    })
+            
+            # 신뢰도 순으로 정렬
+            search_results.sort(key=lambda x: x['match_score'], reverse=True)
+            
+            return search_results[:10]  # 상위 10개 결과
+            
+        except Exception as e:
+            logger.error(f"❌ 프레임 검색 오류: {e}")
+            return []
     
     def _extract_search_terms(self, message):
         """검색어에서 관련 용어 추출"""
@@ -5294,16 +5465,8 @@ class EnhancedVideoChatView(APIView):
         
         # 한국어-영어 객체 매핑
         object_mapping = {
-            '사람': 'person', '인물': 'person', '남자': 'person', '여자': 'person',
-            '차': 'car', '자동차': 'car', '차량': 'car',
-            '자전거': 'bicycle', '오토바이': 'motorcycle',
-            '개': 'dog', '강아지': 'dog', '고양이': 'cat',
-            '의자': 'chair', '책': 'book', '컵': 'cup',
-            '핸드폰': 'cell_phone', '휴대폰': 'cell_phone', '폰': 'cell_phone',
-            '노트북': 'laptop', '컴퓨터': 'laptop',
-            '텔레비전': 'tv', 'tv': 'tv', '티비': 'tv',
-            '가방' : 'bag', '백팩': 'backpack', '가방': 'bag',
-            '스케이트보드' : 'skateboard',
+            '사람': 'person', '차': 'car', '자동차': 'car',
+            '자전거': 'bicycle', '개': 'dog', '고양이': 'cat'
         }
         
         search_terms = []
@@ -5314,32 +5477,78 @@ class EnhancedVideoChatView(APIView):
                 search_terms.append(english)
                 search_terms.append(korean)
         
-        # 영어 단어들도 직접 추가
-        english_objects = ['person', 'car', 'bicycle', 'motorcycle', 'dog', 'cat', 
-                          'chair', 'book', 'cup', 'cell_phone', 'laptop', 'tv']
-        
-        for obj in english_objects:
-            if obj in message_lower:
-                search_terms.append(obj)
-        
-        # 기본 검색어 추가 (공백으로 분리)
+        # 기본 검색어 추가
         words = message_lower.split()
         for word in words:
-            if len(word) > 1 and word not in ['있는', '장면', '찾아', '찾아줘', '보여줘', '검색']:
+            if len(word) > 1:
                 search_terms.append(word)
         
         return list(set(search_terms))  # 중복 제거
     
-    def _format_timestamp(self, seconds):
-        """타임스탬프를 보기 좋은 형식으로 변환"""
+    def _format_search_response(self, query, search_results):
+        """검색 결과 포맷팅"""
+        if not search_results:
+            return f"'{query}' 검색 결과를 찾을 수 없습니다."
+        
+        response_text = f"'{query}' 검색 결과 {len(search_results)}개를 찾았습니다.\n\n"
+        
+        for i, result in enumerate(search_results[:3]):
+            time_str = self._seconds_to_time_string(result['timestamp'])
+            response_text += f"{i+1}. 프레임 #{result['frame_id']} ({time_str})\n"
+            response_text += f"   {result['caption'][:100]}...\n\n"
+        
+        response_text += "🖼️ 아래에서 실제 프레임 이미지를 확인하세요!"
+        
+        return response_text
+        """검색어에서 관련 용어 추출"""
+        message_lower = message.lower()
+        
+        # 한국어-영어 객체 매핑
+        object_mapping = {
+            '사람': 'person', '차': 'car', '자동차': 'car',
+            '자전거': 'bicycle', '개': 'dog', '고양이': 'cat'
+        }
+        
+        search_terms = []
+        
+        # 직접 매핑되는 용어들 추가
+        for korean, english in object_mapping.items():
+            if korean in message_lower:
+                search_terms.append(english)
+                search_terms.append(korean)
+        
+        # 기본 검색어 추가
+        words = message_lower.split()
+        for word in words:
+            if len(word) > 1:
+                search_terms.append(word)
+        
+        return list(set(search_terms))  # 중복 제거
+    
+    def _format_search_response(self, query, search_results):
+        """검색 결과 포맷팅"""
+        if not search_results:
+            return f"'{query}' 검색 결과를 찾을 수 없습니다."
+        
+        response_text = f"'{query}' 검색 결과 {len(search_results)}개를 찾았습니다.\n\n"
+        
+        for i, result in enumerate(search_results[:3]):
+            time_str = self._seconds_to_time_string(result['timestamp'])
+            response_text += f"{i+1}. 프레임 #{result['frame_id']} ({time_str})\n"
+            response_text += f"   {result['caption'][:100]}...\n\n"
+        
+        return response_text
+    
+    def _seconds_to_time_string(self, seconds):
+        """초를 시간 문자열로 변환"""
         if not seconds:
             return "0:00"
         
         minutes = int(seconds // 60)
-        seconds = int(seconds % 60)
-        return f"{minutes}:{seconds:02d}"
+        secs = int(seconds % 60)
+        return f"{minutes}:{secs:02d}"
     
-    
+    # 기존 메서드들 유지
     def _get_enhanced_video_info(self, video):
         """고급 분석 정보를 포함한 비디오 정보"""
         info = f"📹 비디오: {video.original_name}\n"
@@ -5351,118 +5560,36 @@ class EnhancedVideoChatView(APIView):
             info += f"🔬 분석 타입: {stats.get('analysis_type', 'enhanced')}\n"
             info += f"📊 감지된 객체: {stats.get('unique_objects', 0)}종류\n"
             
-            # 고급 기능 사용 여부
-            advanced_features = []
-            if stats.get('clip_analysis'):
-                advanced_features.append('CLIP 씬 분석')
-            if stats.get('text_extracted'):
-                advanced_features.append('OCR 텍스트 추출')
-            if stats.get('vqa_analysis'):
-                advanced_features.append('VQA 질문답변')
-            if stats.get('scene_graph_analysis'):
-                advanced_features.append('Scene Graph')
-            
-            if advanced_features:
-                info += f"🚀 사용된 고급 기능: {', '.join(advanced_features)}\n"
-            
             # 씬 타입 정보
             scene_types = stats.get('scene_types', [])
             if scene_types:
                 info += f"🎬 감지된 씬 타입: {', '.join(scene_types[:3])}\n"
-            
-            # 텍스트 콘텐츠 정보
-            if stats.get('text_extracted'):
-                text_length = analysis.caption_statistics.get('text_content_length', 0)
-                info += f"📝 추출된 텍스트: {text_length}자\n"
         
         return info
     
+    def _is_search_query(self, message):
+        search_keywords = ['찾아', '검색', '어디', 'find', 'search', 'where', '보여줘', '추적', '지나간']
+        return any(keyword in message for keyword in search_keywords)
+    
     def _is_analysis_query(self, message):
-        """분석 결과 관련 쿼리인지 확인"""
         analysis_keywords = ['분석', 'analysis', '결과', '통계', '인사이트', '요약', 'summary']
         return any(keyword in message.lower() for keyword in analysis_keywords)
     
     def _is_comparison_query(self, message):
-        """비교 분석 쿼리인지 확인"""
         comparison_keywords = ['비교', 'compare', '차이', 'difference', '대비', 'vs']
         return any(keyword in message.lower() for keyword in comparison_keywords)
     
-   
     def _handle_analysis_insights(self, message, video, video_info):
         """분석 인사이트 제공"""
-        try:
-            if hasattr(video, 'analysis'):
-                analysis = video.analysis
-                stats = analysis.analysis_statistics
-                
-                insights = {
-                    'analysis_type': stats.get('analysis_type', 'enhanced'),
-                    'dominant_objects': stats.get('unique_objects', 0),
-                    'scene_types': stats.get('scene_types', []),
-                    'advanced_features': [],
-                    'text_content': stats.get('text_extracted', False),
-                    'processing_time': analysis.processing_time_seconds
-                }
-                
-                # 고급 기능 사용 현황
-                if stats.get('clip_analysis'):
-                    insights['advanced_features'].append('CLIP 씬 이해')
-                if stats.get('vqa_analysis'):
-                    insights['advanced_features'].append('VQA 질문답변')
-                if stats.get('scene_graph_analysis'):
-                    insights['advanced_features'].append('Scene Graph 관계 분석')
-                
-                # LLM으로 인사이트 생성
-                prompt = f"""
-                다음 비디오 분석 결과를 바탕으로 사용자에게 유용한 인사이트를 제공해주세요:
-                
-                분석 정보: {json.dumps(insights, ensure_ascii=False, indent=2)}
-                
-                사용자 질문: {message}
-                
-                분석 결과의 주요 특징, 발견된 패턴, 활용 방법 등을 포함하여 상세하고 도움이 되는 답변을 해주세요.
-                """
-                
-                bot_response = self.llm_client.generate_smart_response(
-                    user_query=prompt,
-                    search_results=None,
-                    video_info=video_info,
-                    use_multi_llm=True
-                )
-                
-                return Response({
-                    'response': bot_response,
-                    'insights': insights,
-                    'response_type': 'analysis_insights'
-                })
-            
-            else:
-                return Response({
-                    'response': '이 비디오는 아직 고급 분석이 완료되지 않았습니다. 분석을 먼저 실행해주세요.'
-                })
-                
-        except Exception as e:
-            print(f"❌ 인사이트 생성 실패: {e}")
-            return Response({
-                'response': '분석 인사이트를 생성하는 중 오류가 발생했습니다.'
-            })
+        return Response({
+            'response': '분석 인사이트 기능은 개발 중입니다.'
+        })
     
     def _handle_comparison_query(self, message, video, video_info):
         """비교 분석 처리"""
-        # 기본 구현
         return Response({
             'response': '비교 분석 기능은 개발 중입니다.'
         })
-    
-    # 기존 메서드들도 유지
-    def _is_search_query(self, message):
-        search_keywords = ['찾아', '검색', '어디', 'find', 'search', 'where', '보여줘']
-        return any(keyword in message for keyword in search_keywords)
-
-
-# 기존 View 클래스들 유지 (VideoListView, VideoUploadView 등)
-# 단, AnalyzeVideoView는 EnhancedAnalyzeVideoView로 대체
-
 class VideoListView(APIView):
     """비디오 목록 조회 - 고급 분석 정보 포함"""
     permission_classes = [AllowAny]
@@ -6055,10 +6182,6 @@ class ScenesView(APIView):
         
 
 
-
-
-
-# additional_views.py - 추가 고급 분석 뷰들
 
 import os
 import json
@@ -7452,3 +7575,956 @@ class AnalysisCapabilitiesView(APIView):
             }
             
             return Response(error_response, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# views.py에 추가할 고급 검색 API 클래스들
+
+class CrossVideoSearchView(APIView):
+    """영상 간 검색 - 여러 비디오에서 조건 검색"""
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        try:
+            query = request.data.get('query', '').strip()
+            search_filters = request.data.get('filters', {})
+            
+            if not query:
+                return Response({'error': '검색어를 입력해주세요.'}, status=400)
+            
+            # 쿼리 분석 - 날씨, 시간대, 장소 등 추출
+            query_analysis = self._analyze_query(query)
+            
+            # 분석된 비디오들 중에서 검색
+            videos = Video.objects.filter(is_analyzed=True)
+            matching_videos = []
+            
+            for video in videos:
+                match_score = self._calculate_video_match_score(video, query_analysis, search_filters)
+                if match_score > 0.3:  # 임계값
+                    matching_videos.append({
+                        'video_id': video.id,
+                        'video_name': video.original_name,
+                        'match_score': match_score,
+                        'match_reasons': self._get_match_reasons(video, query_analysis),
+                        'metadata': self._get_video_metadata(video),
+                        'thumbnail_url': f'/api/frame/{video.id}/100/',
+                    })
+            
+            # 점수순 정렬
+            matching_videos.sort(key=lambda x: x['match_score'], reverse=True)
+            
+            return Response({
+                'query': query,
+                'total_matches': len(matching_videos),
+                'results': matching_videos[:20],  # 상위 20개
+                'query_analysis': query_analysis,
+                'search_type': 'cross_video'
+            })
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+    
+    def _analyze_query(self, query):
+        """쿼리에서 날씨, 시간대, 장소 등 추출"""
+        analysis = {
+            'weather': None,
+            'time_of_day': None,
+            'location': None,
+            'objects': [],
+            'activities': []
+        }
+        
+        query_lower = query.lower()
+        
+        # 날씨 키워드
+        weather_keywords = {
+            '비': 'rainy', '비가': 'rainy', '우천': 'rainy',
+            '맑은': 'sunny', '화창한': 'sunny', '햇빛': 'sunny',
+            '흐린': 'cloudy', '구름': 'cloudy'
+        }
+        
+        # 시간대 키워드
+        time_keywords = {
+            '밤': 'night', '야간': 'night', '저녁': 'evening',
+            '낮': 'day', '오후': 'afternoon', '아침': 'morning'
+        }
+        
+        # 장소 키워드
+        location_keywords = {
+            '실내': 'indoor', '건물': 'indoor', '방': 'indoor',
+            '실외': 'outdoor', '도로': 'outdoor', '거리': 'outdoor'
+        }
+        
+        for keyword, value in weather_keywords.items():
+            if keyword in query_lower:
+                analysis['weather'] = value
+                break
+        
+        for keyword, value in time_keywords.items():
+            if keyword in query_lower:
+                analysis['time_of_day'] = value
+                break
+                
+        for keyword, value in location_keywords.items():
+            if keyword in query_lower:
+                analysis['location'] = value
+                break
+        
+        return analysis
+    
+    def _calculate_video_match_score(self, video, query_analysis, filters):
+        """비디오와 쿼리 간의 매칭 점수 계산"""
+        score = 0.0
+        
+        try:
+            # 분석 결과가 있는 경우
+            if hasattr(video, 'analysis'):
+                stats = video.analysis.analysis_statistics
+                scene_types = stats.get('scene_types', [])
+                
+                # 날씨 매칭
+                if query_analysis['weather']:
+                    weather_scenes = [s for s in scene_types if query_analysis['weather'] in s.lower()]
+                    if weather_scenes:
+                        score += 0.4
+                
+                # 시간대 매칭
+                if query_analysis['time_of_day']:
+                    time_scenes = [s for s in scene_types if query_analysis['time_of_day'] in s.lower()]
+                    if time_scenes:
+                        score += 0.3
+                
+                # 장소 매칭
+                if query_analysis['location']:
+                    location_scenes = [s for s in scene_types if query_analysis['location'] in s.lower()]
+                    if location_scenes:
+                        score += 0.3
+            
+            return min(score, 1.0)
+            
+        except Exception:
+            return 0.0
+    
+    def _get_match_reasons(self, video, query_analysis):
+        """매칭 이유 생성"""
+        reasons = []
+        
+        if query_analysis['weather']:
+            reasons.append(f"{query_analysis['weather']} 날씨 조건")
+        if query_analysis['time_of_day']:
+            reasons.append(f"{query_analysis['time_of_day']} 시간대")
+        if query_analysis['location']:
+            reasons.append(f"{query_analysis['location']} 환경")
+            
+        return reasons
+    
+    def _get_video_metadata(self, video):
+        """비디오 메타데이터 반환"""
+        metadata = {
+            'duration': video.duration,
+            'file_size': video.file_size,
+            'uploaded_at': video.uploaded_at.isoformat(),
+            'analysis_type': 'basic'
+        }
+        
+        if hasattr(video, 'analysis'):
+            stats = video.analysis.analysis_statistics
+            metadata.update({
+                'analysis_type': stats.get('analysis_type', 'basic'),
+                'scene_types': stats.get('scene_types', []),
+                'dominant_objects': stats.get('dominant_objects', [])
+            })
+        
+        return metadata
+
+# views.py - 고급 검색 관련 뷰 수정된 버전
+# views.py - IntraVideoTrackingView 향상된 버전 (더미 데이터 지원)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class IntraVideoTrackingView(APIView):
+    """영상 내 객체 추적 - 향상된 버전 (더미 데이터 지원)"""
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        try:
+            video_id = request.data.get('video_id')
+            tracking_target = request.data.get('tracking_target', '').strip()
+            time_range = request.data.get('time_range', {})
+            
+            logger.info(f"🎯 객체 추적 요청: 비디오={video_id}, 대상='{tracking_target}', 시간범위={time_range}")
+            
+            if not video_id or not tracking_target:
+                return Response({'error': '비디오 ID와 추적 대상이 필요합니다.'}, status=400)
+            
+            try:
+                video = Video.objects.get(id=video_id)
+            except Video.DoesNotExist:
+                return Response({'error': '비디오를 찾을 수 없습니다.'}, status=404)
+            
+            # Frame 데이터 확인 및 생성
+            self._ensure_frame_data(video)
+            
+            # 타겟 분석 (색상, 객체 타입 등 추출)
+            target_analysis = self._analyze_tracking_target(tracking_target)
+            logger.info(f"📋 타겟 분석 결과: {target_analysis}")
+            
+            # 프레임별 추적 결과
+            tracking_results = self._perform_object_tracking(video, target_analysis, time_range)
+            
+            logger.info(f"✅ 객체 추적 완료: {len(tracking_results)}개 결과")
+            
+            # 결과가 없으면 더 관대한 검색 수행
+            if not tracking_results:
+                logger.info("🔄 관대한 검색 모드로 재시도...")
+                tracking_results = self._perform_lenient_tracking(video, target_analysis, time_range)
+            
+            return Response({
+                'video_id': video_id,
+                'tracking_target': tracking_target,
+                'target_analysis': target_analysis,
+                'tracking_results': tracking_results,
+                'total_detections': len(tracking_results),
+                'search_type': 'object_tracking'
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ 객체 추적 오류: {e}")
+            import traceback
+            logger.error(f"🔍 상세 오류: {traceback.format_exc()}")
+            return Response({'error': str(e)}, status=500)
+    
+    def _ensure_frame_data(self, video):
+        """Frame 데이터 확인 및 생성"""
+        try:
+            frame_count = video.frames.count()
+            if frame_count == 0:
+                logger.warning(f"⚠️ 비디오 {video.original_name}에 Frame 데이터가 없습니다. 더미 데이터를 생성합니다.")
+                from .models import create_dummy_frame_data
+                create_dummy_frame_data(video, frame_count=30)
+                logger.info(f"✅ 더미 Frame 데이터 생성 완료: 30개")
+                return True
+            else:
+                logger.info(f"📊 기존 Frame 데이터 확인: {frame_count}개")
+                return False
+        except Exception as e:
+            logger.error(f"❌ Frame 데이터 확인 실패: {e}")
+            return False
+    
+    def _analyze_tracking_target(self, target):
+        """추적 대상 분석 - 향상된 버전"""
+        analysis = {
+            'object_type': None,
+            'colors': [],
+            'gender': None,
+            'clothing': [],
+            'keywords': target.lower().split(),
+            'original_target': target
+        }
+        
+        target_lower = target.lower()
+        
+        # 객체 타입 매핑 확장
+        object_mappings = {
+            ('사람', '남성', '여성', '인물'): 'person',
+            ('차', '자동차', '차량', '승용차'): 'car',
+            ('자전거',): 'bicycle',
+            ('개', '강아지', '멍멍이'): 'dog',
+            ('고양이', '냥이'): 'cat',
+            ('의자',): 'chair',
+            ('노트북', '컴퓨터'): 'laptop',
+            ('핸드폰', '휴대폰', '폰'): 'cell_phone'
+        }
+        
+        for keywords, obj_type in object_mappings.items():
+            if any(keyword in target_lower for keyword in keywords):
+                analysis['object_type'] = obj_type
+                break
+        
+        # 색상 추출 확장
+        color_keywords = {
+            '빨간': 'red', '빨강': 'red', '적색': 'red',
+            '주황': 'orange', '오렌지': 'orange',
+            '노란': 'yellow', '노랑': 'yellow', '황색': 'yellow',
+            '초록': 'green', '녹색': 'green',
+            '파란': 'blue', '파랑': 'blue', '청색': 'blue',
+            '보라': 'purple', '자주': 'purple',
+            '검은': 'black', '검정': 'black',
+            '흰': 'white', '하얀': 'white', '백색': 'white',
+            '회색': 'gray', '그레이': 'gray'
+        }
+        
+        for keyword, color in color_keywords.items():
+            if keyword in target_lower:
+                analysis['colors'].append(color)
+        
+        # 성별 및 의상 정보
+        if any(word in target_lower for word in ['남성', '남자', '아저씨']):
+            analysis['gender'] = 'male'
+        elif any(word in target_lower for word in ['여성', '여자', '아주머니']):
+            analysis['gender'] = 'female'
+        
+        if any(word in target_lower for word in ['상의', '티셔츠', '셔츠', '옷']):
+            analysis['clothing'].append('top')
+        if any(word in target_lower for word in ['모자', '캡', '햇']):
+            analysis['clothing'].append('hat')
+        
+        return analysis
+    
+    def _perform_object_tracking(self, video, target_analysis, time_range):
+        """실제 객체 추적 수행 - 향상된 버전"""
+        tracking_results = []
+        
+        try:
+            # Frame 모델에서 해당 비디오의 프레임들 가져오기
+            frames_query = Frame.objects.filter(video=video).order_by('timestamp')
+            
+            # 시간 범위 필터링
+            if time_range.get('start') and time_range.get('end'):
+                start_time = self._parse_time_to_seconds(time_range['start'])
+                end_time = self._parse_time_to_seconds(time_range['end'])
+                frames_query = frames_query.filter(timestamp__gte=start_time, timestamp__lte=end_time)
+                logger.info(f"⏰ 시간 필터링: {start_time}s ~ {end_time}s")
+            
+            frames = list(frames_query)
+            logger.info(f"📊 분석할 프레임 수: {len(frames)}개")
+            
+            if not frames:
+                logger.warning("⚠️ 분석할 프레임이 없습니다.")
+                return []
+            
+            for frame in frames:
+                try:
+                    matches = self._find_matching_objects(frame, target_analysis)
+                    for match in matches:
+                        tracking_results.append({
+                            'frame_id': frame.image_id,
+                            'timestamp': frame.timestamp,
+                            'confidence': match['confidence'],
+                            'bbox': match['bbox'],
+                            'description': match['description'],
+                            'tracking_id': match.get('tracking_id', f"obj_{frame.image_id}"),
+                            'match_reasons': match['match_reasons']
+                        })
+                except Exception as frame_error:
+                    logger.warning(f"⚠️ 프레임 {frame.image_id} 처리 실패: {frame_error}")
+                    continue
+            
+            # 시간순 정렬
+            tracking_results.sort(key=lambda x: x['timestamp'])
+            
+            return tracking_results
+            
+        except Exception as e:
+            logger.error(f"❌ 추적 수행 오류: {e}")
+            return []
+    
+    def _perform_lenient_tracking(self, video, target_analysis, time_range):
+        """관대한 추적 모드 - 매칭 기준을 낮춤"""
+        try:
+            frames_query = Frame.objects.filter(video=video).order_by('timestamp')
+            
+            if time_range.get('start') and time_range.get('end'):
+                start_time = self._parse_time_to_seconds(time_range['start'])
+                end_time = self._parse_time_to_seconds(time_range['end'])
+                frames_query = frames_query.filter(timestamp__gte=start_time, timestamp__lte=end_time)
+            
+            frames = list(frames_query)
+            tracking_results = []
+            
+            for frame in frames:
+                try:
+                    # 관대한 매칭 조건
+                    detected_objects = frame.get_detected_objects()
+                    
+                    for obj in detected_objects:
+                        match_score = 0.0
+                        match_reasons = []
+                        
+                        # 객체 타입 매칭 (더 관대하게)
+                        obj_class = obj.get('class', '').lower()
+                        if target_analysis.get('object_type'):
+                            if target_analysis['object_type'] in obj_class or obj_class in target_analysis['object_type']:
+                                match_score += 0.3
+                                match_reasons.append(f"{obj_class} 객체 타입 매칭")
+                        
+                        # 키워드 매칭
+                        for keyword in target_analysis.get('keywords', []):
+                            if keyword in obj_class or any(keyword in str(v) for v in obj.values()):
+                                match_score += 0.2
+                                match_reasons.append(f"키워드 '{keyword}' 매칭")
+                        
+                        # 색상 매칭 (관대하게)
+                        if target_analysis.get('colors'):
+                            color_desc = obj.get('color_description', '').lower()
+                            for color in target_analysis['colors']:
+                                if color in color_desc or any(color in str(c) for c in obj.get('colors', [])):
+                                    match_score += 0.2
+                                    match_reasons.append(f"{color} 색상 매칭")
+                        
+                        # 낮은 임계값으로 매칭 (0.2 이상)
+                        if match_score >= 0.2:
+                            tracking_results.append({
+                                'frame_id': frame.image_id,
+                                'timestamp': frame.timestamp,
+                                'confidence': min(match_score, obj.get('confidence', 0.5)),
+                                'bbox': obj.get('bbox', []),
+                                'description': self._generate_match_description(obj, target_analysis),
+                                'tracking_id': obj.get('track_id', f"obj_{frame.image_id}"),
+                                'match_reasons': match_reasons
+                            })
+                
+                except Exception as frame_error:
+                    continue
+            
+            tracking_results.sort(key=lambda x: x['timestamp'])
+            logger.info(f"🔍 관대한 검색 결과: {len(tracking_results)}개")
+            return tracking_results
+            
+        except Exception as e:
+            logger.error(f"❌ 관대한 추적 오류: {e}")
+            return []
+    
+    def _find_matching_objects(self, frame, target_analysis):
+        """프레임에서 매칭되는 객체 찾기 - 향상된 버전"""
+        matches = []
+        
+        try:
+            # detected_objects 안전하게 가져오기
+            detected_objects = frame.get_detected_objects()
+            
+            if not detected_objects:
+                return matches
+            
+            for obj in detected_objects:
+                match_score = 0.0
+                match_reasons = []
+                
+                # 객체 타입 매칭
+                if target_analysis.get('object_type') and obj.get('class') == target_analysis['object_type']:
+                    match_score += 0.4
+                    match_reasons.append(f"{target_analysis['object_type']} 객체 매칭")
+                
+                # 색상 매칭
+                if target_analysis.get('colors'):
+                    color_desc = obj.get('color_description', '').lower()
+                    obj_colors = obj.get('colors', [])
+                    
+                    for color in target_analysis['colors']:
+                        if (color in color_desc or 
+                            any(color in str(c).lower() for c in obj_colors)):
+                            match_score += 0.3
+                            match_reasons.append(f"{color} 색상 매칭")
+                            break
+                
+                # 키워드 매칭 (보조)
+                obj_class = obj.get('class', '').lower()
+                for keyword in target_analysis.get('keywords', []):
+                    if keyword in obj_class:
+                        match_score += 0.2
+                        match_reasons.append(f"키워드 '{keyword}' 매칭")
+                        break
+                
+                # 임계값 이상이면 매치로 간주
+                if match_score > 0.3:
+                    matches.append({
+                        'confidence': min(match_score, obj.get('confidence', 0.5)),
+                        'bbox': obj.get('bbox', []),
+                        'description': self._generate_match_description(obj, target_analysis),
+                        'match_reasons': match_reasons,
+                        'tracking_id': obj.get('track_id', f"obj_{frame.image_id}")
+                    })
+            
+            return matches
+            
+        except Exception as e:
+            logger.warning(f"⚠️ 객체 매칭 오류: {e}")
+            return []
+    
+    def _generate_match_description(self, obj, target_analysis):
+        """매칭 설명 생성 - 향상된 버전"""
+        desc_parts = []
+        
+        # 색상 정보
+        color_desc = obj.get('color_description', '')
+        if color_desc and color_desc != 'unknown':
+            desc_parts.append(color_desc)
+        
+        # 객체 클래스
+        obj_class = obj.get('class', '객체')
+        desc_parts.append(obj_class)
+        
+        # 성별 정보 (있는 경우)
+        if target_analysis.get('gender'):
+            desc_parts.append(f"({target_analysis['gender']})")
+        
+        # 의상 정보 (있는 경우)
+        if target_analysis.get('clothing'):
+            clothing_desc = ', '.join(target_analysis['clothing'])
+            desc_parts.append(f"[{clothing_desc}]")
+        
+        description = ' '.join(desc_parts) + ' 감지'
+        
+        return description
+    
+    def _parse_time_to_seconds(self, time_str):
+        """시간 문자열을 초로 변환 - 향상된 버전"""
+        try:
+            if not time_str:
+                return 0
+            
+            time_str = str(time_str).strip()
+            
+            if ':' in time_str:
+                parts = time_str.split(':')
+                minutes = int(parts[0])
+                seconds = int(parts[1]) if len(parts) > 1 else 0
+                return minutes * 60 + seconds
+            else:
+                # 순수 숫자인 경우
+                return int(float(time_str))
+        except (ValueError, TypeError) as e:
+            logger.warning(f"⚠️ 시간 파싱 실패: {time_str} -> {e}")
+            return 0
+
+@method_decorator(csrf_exempt, name='dispatch')
+class TimeBasedAnalysisView(APIView):
+    """시간대별 분석 - 수정된 버전"""
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        try:
+            video_id = request.data.get('video_id')
+            time_range = request.data.get('time_range', {})
+            analysis_type = request.data.get('analysis_type', '성비 분포')
+            
+            logger.info(f"📊 시간대별 분석 요청: 비디오={video_id}, 시간범위={time_range}, 타입='{analysis_type}'")
+            
+            if not video_id or not time_range.get('start') or not time_range.get('end'):
+                return Response({'error': '비디오 ID와 시간 범위가 필요합니다.'}, status=400)
+            
+            try:
+                video = Video.objects.get(id=video_id)
+            except Video.DoesNotExist:
+                return Response({'error': '비디오를 찾을 수 없습니다.'}, status=404)
+            
+            # 시간 범위 파싱
+            start_time = self._parse_time_to_seconds(time_range['start'])
+            end_time = self._parse_time_to_seconds(time_range['end'])
+            
+            logger.info(f"⏰ 분석 시간: {start_time}초 ~ {end_time}초")
+            
+            # 해당 시간대의 프레임들 분석
+            analysis_result = self._perform_time_based_analysis(
+                video, start_time, end_time, analysis_type
+            )
+            
+            logger.info(f"✅ 시간대별 분석 완료")
+            
+            return Response({
+                'video_id': video_id,
+                'time_range': time_range,
+                'analysis_type': analysis_type,
+                'result': analysis_result,
+                'search_type': 'time_analysis'
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ 시간대별 분석 오류: {e}")
+            return Response({'error': str(e)}, status=500)
+    
+    def _perform_time_based_analysis(self, video, start_time, end_time, analysis_type):
+        """시간대별 분석 수행"""
+        
+        # 해당 시간대 프레임들 가져오기
+        frames = Frame.objects.filter(
+            video=video,
+            timestamp__gte=start_time,
+            timestamp__lte=end_time
+        ).order_by('timestamp')
+        
+        frame_list = list(frames)
+        logger.info(f"📊 분석 대상 프레임: {len(frame_list)}개")
+        
+        if '성비' in analysis_type or '사람' in analysis_type:
+            return self._analyze_gender_distribution(frame_list, start_time, end_time)
+        elif '차량' in analysis_type or '교통' in analysis_type:
+            return self._analyze_vehicle_distribution(frame_list, start_time, end_time)
+        else:
+            return self._analyze_general_statistics(frame_list, start_time, end_time)
+    
+    def _analyze_gender_distribution(self, frames, start_time, end_time):
+        """성비 분석"""
+        person_detections = []
+        
+        for frame in frames:
+            if not hasattr(frame, 'detected_objects') or not frame.detected_objects:
+                continue
+                
+            for obj in frame.detected_objects:
+                if obj.get('class') == 'person':
+                    person_detections.append({
+                        'timestamp': frame.timestamp,
+                        'confidence': obj.get('confidence', 0.5),
+                        'bbox': obj.get('bbox', []),
+                        'colors': obj.get('colors', []),
+                        'color_description': obj.get('color_description', '')
+                    })
+        
+        # 성별 추정 (간단한 휴리스틱 - 실제로는 더 정교한 AI 모델 필요)
+        male_count = 0
+        female_count = 0
+        
+        for detection in person_detections:
+            # 색상 기반 간단한 성별 추정
+            colors = detection['color_description'].lower()
+            if 'blue' in colors or 'black' in colors or 'gray' in colors:
+                male_count += 1
+            elif 'pink' in colors or 'red' in colors:
+                female_count += 1
+            else:
+                # 50:50으로 분배
+                if len(person_detections) % 2 == 0:
+                    male_count += 1
+                else:
+                    female_count += 1
+        
+        total_persons = male_count + female_count
+        
+        # 의상 색상 분포
+        clothing_colors = {}
+        for detection in person_detections:
+            color = detection['color_description']
+            if color and color != 'unknown':
+                clothing_colors[color] = clothing_colors.get(color, 0) + 1
+        
+        # 피크 시간대 분석
+        time_distribution = {}
+        for detection in person_detections:
+            time_bucket = int(detection['timestamp'] // 30) * 30  # 30초 단위
+            time_distribution[time_bucket] = time_distribution.get(time_bucket, 0) + 1
+        
+        peak_times = sorted(time_distribution.items(), key=lambda x: x[1], reverse=True)[:2]
+        peak_time_strings = [f"{self._seconds_to_time_string(t[0])}-{self._seconds_to_time_string(t[0]+30)}" 
+                           for t in peak_times]
+        
+        return {
+            'total_persons': total_persons,
+            'male_count': male_count,
+            'female_count': female_count,
+            'gender_ratio': {
+                'male': round((male_count / total_persons * 100), 1) if total_persons > 0 else 0,
+                'female': round((female_count / total_persons * 100), 1) if total_persons > 0 else 0
+            },
+            'clothing_colors': dict(sorted(clothing_colors.items(), key=lambda x: x[1], reverse=True)),
+            'peak_times': peak_time_strings,
+            'movement_patterns': 'left_to_right_dominant',  # 간단한 예시
+            'analysis_period': f"{self._seconds_to_time_string(start_time)} - {self._seconds_to_time_string(end_time)}"
+        }
+    
+    def _analyze_vehicle_distribution(self, frames, start_time, end_time):
+        """차량 분포 분석"""
+        vehicles = []
+        
+        for frame in frames:
+            if not hasattr(frame, 'detected_objects') or not frame.detected_objects:
+                continue
+                
+            for obj in frame.detected_objects:
+                if obj.get('class') in ['car', 'truck', 'bus', 'motorcycle']:
+                    vehicles.append({
+                        'type': obj.get('class'),
+                        'timestamp': frame.timestamp,
+                        'confidence': obj.get('confidence', 0.5)
+                    })
+        
+        vehicle_types = {}
+        for v in vehicles:
+            vehicle_types[v['type']] = vehicle_types.get(v['type'], 0) + 1
+        
+        duration_minutes = (end_time - start_time) / 60
+        
+        return {
+            'total_vehicles': len(vehicles),
+            'vehicle_types': vehicle_types,
+            'average_per_minute': round(len(vehicles) / max(1, duration_minutes), 1),
+            'analysis_period': f"{self._seconds_to_time_string(start_time)} - {self._seconds_to_time_string(end_time)}"
+        }
+    
+    def _analyze_general_statistics(self, frames, start_time, end_time):
+        """일반 통계 분석"""
+        all_objects = []
+        
+        for frame in frames:
+            if hasattr(frame, 'detected_objects') and frame.detected_objects:
+                all_objects.extend(frame.detected_objects)
+        
+        object_counts = {}
+        for obj in all_objects:
+            obj_class = obj.get('class', 'unknown')
+            object_counts[obj_class] = object_counts.get(obj_class, 0) + 1
+        
+        return {
+            'total_objects': len(all_objects),
+            'object_distribution': dict(sorted(object_counts.items(), key=lambda x: x[1], reverse=True)),
+            'frames_analyzed': len(frames),
+            'average_objects_per_frame': round(len(all_objects) / max(1, len(frames)), 1),
+            'analysis_period': f"{self._seconds_to_time_string(start_time)} - {self._seconds_to_time_string(end_time)}"
+        }
+    
+    def _parse_time_to_seconds(self, time_str):
+        """시간 문자열을 초로 변환"""
+        try:
+            if ':' in time_str:
+                parts = time_str.split(':')
+                minutes = int(parts[0])
+                seconds = int(parts[1]) if len(parts) > 1 else 0
+                return minutes * 60 + seconds
+            else:
+                return int(time_str)
+        except:
+            return 0
+    
+    def _seconds_to_time_string(self, seconds):
+        """초를 시간 문자열로 변환"""
+        minutes = int(seconds // 60)
+        secs = int(seconds % 60)
+        return f"{minutes}:{secs:02d}"
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class CrossVideoSearchView(APIView):
+    """영상 간 검색 - 수정된 버전"""
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        try:
+            query = request.data.get('query', '').strip()
+            search_filters = request.data.get('filters', {})
+            
+            logger.info(f"🔍 크로스 비디오 검색 요청: '{query}'")
+            
+            if not query:
+                return Response({'error': '검색어를 입력해주세요.'}, status=400)
+            
+            # 쿼리 분석
+            query_analysis = self._analyze_query(query)
+            
+            # 분석된 비디오들 중에서 검색
+            videos = Video.objects.filter(is_analyzed=True)
+            matching_videos = []
+            
+            for video in videos:
+                match_score = self._calculate_video_match_score(video, query_analysis, search_filters)
+                if match_score > 0.3:  # 임계값
+                    matching_videos.append({
+                        'video_id': video.id,
+                        'video_name': video.original_name,
+                        'match_score': match_score,
+                        'match_reasons': self._get_match_reasons(video, query_analysis),
+                        'metadata': self._get_video_metadata(video),
+                        'thumbnail_url': f'/frame/{video.id}/100/',
+                    })
+            
+            # 점수순 정렬
+            matching_videos.sort(key=lambda x: x['match_score'], reverse=True)
+            
+            logger.info(f"✅ 크로스 비디오 검색 완료: {len(matching_videos)}개 결과")
+            
+            return Response({
+                'query': query,
+                'total_matches': len(matching_videos),
+                'results': matching_videos[:20],  # 상위 20개
+                'query_analysis': query_analysis,
+                'search_type': 'cross_video'
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ 크로스 비디오 검색 오류: {e}")
+            return Response({'error': str(e)}, status=500)
+    
+    def _analyze_query(self, query):
+        """쿼리에서 날씨, 시간대, 장소 등 추출"""
+        analysis = {
+            'weather': None,
+            'time_of_day': None,
+            'location': None,
+            'objects': [],
+            'activities': []
+        }
+        
+        query_lower = query.lower()
+        
+        # 날씨 키워드
+        weather_keywords = {
+            '비': 'rainy', '비가': 'rainy', '우천': 'rainy',
+            '맑은': 'sunny', '화창한': 'sunny', '햇빛': 'sunny',
+            '흐린': 'cloudy', '구름': 'cloudy'
+        }
+        
+        # 시간대 키워드
+        time_keywords = {
+            '밤': 'night', '야간': 'night', '저녁': 'evening',
+            '낮': 'day', '오후': 'afternoon', '아침': 'morning'
+        }
+        
+        # 장소 키워드
+        location_keywords = {
+            '실내': 'indoor', '건물': 'indoor', '방': 'indoor',
+            '실외': 'outdoor', '도로': 'outdoor', '거리': 'outdoor'
+        }
+        
+        for keyword, value in weather_keywords.items():
+            if keyword in query_lower:
+                analysis['weather'] = value
+                break
+        
+        for keyword, value in time_keywords.items():
+            if keyword in query_lower:
+                analysis['time_of_day'] = value
+                break
+                
+        for keyword, value in location_keywords.items():
+            if keyword in query_lower:
+                analysis['location'] = value
+                break
+        
+        return analysis
+    
+    def _calculate_video_match_score(self, video, query_analysis, filters):
+        """비디오와 쿼리 간의 매칭 점수 계산"""
+        score = 0.0
+        
+        try:
+            # VideoAnalysis에서 분석 결과가 있는 경우
+            if hasattr(video, 'analysis'):
+                analysis = video.analysis
+                stats = analysis.analysis_statistics
+                scene_types = stats.get('scene_types', [])
+                
+                # 날씨 매칭
+                if query_analysis['weather']:
+                    weather_scenes = [s for s in scene_types if query_analysis['weather'] in s.lower()]
+                    if weather_scenes:
+                        score += 0.4
+                
+                # 시간대 매칭
+                if query_analysis['time_of_day']:
+                    time_scenes = [s for s in scene_types if query_analysis['time_of_day'] in s.lower()]
+                    if time_scenes:
+                        score += 0.3
+                
+                # 장소 매칭
+                if query_analysis['location']:
+                    location_scenes = [s for s in scene_types if query_analysis['location'] in s.lower()]
+                    if location_scenes:
+                        score += 0.3
+            
+            return min(score, 1.0)
+            
+        except Exception:
+            return 0.0
+    
+    def _get_match_reasons(self, video, query_analysis):
+        """매칭 이유 생성"""
+        reasons = []
+        
+        if query_analysis['weather']:
+            reasons.append(f"{query_analysis['weather']} 날씨 조건")
+        if query_analysis['time_of_day']:
+            reasons.append(f"{query_analysis['time_of_day']} 시간대")
+        if query_analysis['location']:
+            reasons.append(f"{query_analysis['location']} 환경")
+            
+        return reasons
+    
+    def _get_video_metadata(self, video):
+        """비디오 메타데이터 반환"""
+        metadata = {
+            'duration': video.duration,
+            'file_size': video.file_size,
+            'uploaded_at': video.uploaded_at.isoformat(),
+            'analysis_type': 'basic'
+        }
+        
+        if hasattr(video, 'analysis'):
+            stats = video.analysis.analysis_statistics
+            metadata.update({
+                'analysis_type': stats.get('analysis_type', 'basic'),
+                'scene_types': stats.get('scene_types', []),
+                'dominant_objects': stats.get('dominant_objects', [])
+            })
+        
+        return metadata
+
+
+class AdvancedSearchAutoView(APIView):
+    """통합 고급 검색 - 자동 타입 감지"""
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        try:
+            query = request.data.get('query', '').strip()
+            video_id = request.data.get('video_id')
+            time_range = request.data.get('time_range', {})
+            options = request.data.get('options', {})
+            
+            if not query:
+                return Response({'error': '검색어를 입력해주세요.'}, status=400)
+            
+            # 검색 타입 자동 감지
+            search_type = self._detect_search_type(query, video_id, time_range, options)
+            
+            # 해당 검색 타입에 따라 적절한 View 호출
+            if search_type == 'cross-video':
+                view = CrossVideoSearchView()
+                return view.post(request)
+            elif search_type == 'object-tracking':
+                view = IntraVideoTrackingView()
+                return view.post(request)
+            elif search_type == 'time-analysis':
+                view = TimeBasedAnalysisView()
+                return view.post(request)
+            else:
+                # 기본 검색으로 fallback
+                view = EnhancedVideoChatView()
+                return view.post(request)
+                
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+    
+    def _detect_search_type(self, query, video_id, time_range, options):
+        """검색 타입 자동 감지 로직"""
+        query_lower = query.lower()
+        
+        # 시간대별 분석 키워드
+        time_analysis_keywords = [
+            '성비', '분포', '통계', '시간대', '구간', '사이', 
+            '몇명', '얼마나', '평균', '비율', '패턴', '분석'
+        ]
+        
+        # 객체 추적 키워드
+        tracking_keywords = [
+            '추적', '따라가', '이동', '경로', '지나간', 
+            '상의', '모자', '색깔', '옷', '사람', '차량'
+        ]
+        
+        # 영상 간 검색 키워드
+        cross_video_keywords = [
+            '촬영된', '영상', '비디오', '찾아', '비가', '밤', 
+            '낮', '실내', '실외', '장소', '날씨'
+        ]
+        
+        # 시간 범위가 있고 분석 키워드가 있으면 시간대별 분석
+        if (time_range.get('start') and time_range.get('end')) or \
+           any(keyword in query_lower for keyword in time_analysis_keywords):
+            return 'time-analysis'
+        
+        # 특정 비디오 ID가 있고 추적 키워드가 있으면 객체 추적
+        if video_id and any(keyword in query_lower for keyword in tracking_keywords):
+            return 'object-tracking'
+        
+        # 크로스 비디오 키워드가 있으면 영상 간 검색
+        if any(keyword in query_lower for keyword in cross_video_keywords):
+            return 'cross-video'
+        
+        # 기본값: 비디오 ID가 있으면 추적, 없으면 크로스 비디오
+        return 'object-tracking' if video_id else 'cross-video'

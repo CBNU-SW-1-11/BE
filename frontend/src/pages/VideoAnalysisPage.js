@@ -621,42 +621,7 @@ const confirmDelete = async () => {
     return <span className={`status-badge ${statusInfo.class}`}>{statusInfo.text}</span>;
   };
 
-  // 렌더링 함수들
-  const renderSystemCapabilities = () => {
-    if (!Object.keys(systemCapabilities).length) return null;
 
-    return (
-      <div className="system-capabilities">
-        <h3>🔧 시스템 분석 기능</h3>
-        <div className="capabilities-grid">
-          <div className="capability-item">
-            <span className={`capability-status ${systemCapabilities.clip_analysis ? 'available' : 'unavailable'}`}>
-              {systemCapabilities.clip_analysis ? '✅' : '❌'}
-            </span>
-            <span>CLIP 씬 분석</span>
-          </div>
-          <div className="capability-item">
-            <span className={`capability-status ${systemCapabilities.ocr ? 'available' : 'unavailable'}`}>
-              {systemCapabilities.ocr ? '✅' : '❌'}
-            </span>
-            <span>OCR 텍스트 추출</span>
-          </div>
-          <div className="capability-item">
-            <span className={`capability-status ${systemCapabilities.vqa ? 'available' : 'unavailable'}`}>
-              {systemCapabilities.vqa ? '✅' : '❌'}
-            </span>
-            <span>VQA 질문답변</span>
-          </div>
-          <div className="capability-item">
-            <span className={`capability-status ${systemCapabilities.scene_graph ? 'available' : 'unavailable'}`}>
-              {systemCapabilities.scene_graph ? '✅' : '❌'}
-            </span>
-            <span>Scene Graph</span>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   const renderBatchActions = () => {
     const selectableVideos = deleteUtils.getSelectableVideos(videos);
@@ -833,8 +798,7 @@ const confirmDelete = async () => {
           </div>
         </div>
 
-        {/* 시스템 기능 상태 */}
-        {renderSystemCapabilities()}
+    
 
         {/* 오류 메시지 */}
         {error && (

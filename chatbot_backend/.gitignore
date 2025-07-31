@@ -1,1 +1,3 @@
 myenv/
+.env
+ai_of_ai_private/chatbot_backend/chat/.env

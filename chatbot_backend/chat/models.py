@@ -655,3 +655,274 @@ class VideoInsight(models.Model):
 
     def __str__(self):
         return f"{self.insight_type} insight for {self.video.original_name}: {self.title}"
+    
+
+# models.py - 기존 모델에 추가할 새로운 모델들
+
+from django.db import models
+import json
+
+# 기존 Video, VideoAnalysis, Scene, Frame 모델은 그대로 유지하고 다음 모델들을 추가
+
+class VideoMetadata(models.Model):
+    """비디오 메타데이터 - 날씨, 시간대, 장소 등"""
+    video = models.OneToOneField('Video', on_delete=models.CASCADE, related_name='metadata')
+    
+    # 날씨/환경 정보
+    dominant_weather = models.CharField(max_length=50, default='unknown')
+    weather_confidence = models.FloatField(default=0.0)
+    weather_analysis = models.JSONField(default=dict)
+    
+    # 시간대 정보
+    dominant_time_period = models.CharField(max_length=50, default='unknown')
+    time_confidence = models.FloatField(default=0.0)
+    estimated_hour_range = models.CharField(max_length=50, default='unknown')
+    
+    # 전반적인 비디오 특성
+    overall_brightness = models.FloatField(default=0.0)
+    overall_contrast = models.FloatField(default=0.0)
+    scene_complexity = models.FloatField(default=0.0)
+    
+    # 주요 색상 테마
+    dominant_colors = models.JSONField(default=list)
+    color_diversity = models.FloatField(default=0.0)
+    
+    # 장소/환경 추정
+    location_type = models.CharField(max_length=100, default='unknown')  # indoor, outdoor, street, park 등
+    location_confidence = models.FloatField(default=0.0)
+    
+    # 분석 메타데이터
+    analysis_timestamp = models.DateTimeField(auto_now_add=True)
+    analysis_version = models.CharField(max_length=20, default='1.0')
+    
+    def __str__(self):
+        return f"Metadata for {self.video.original_name}"
+    
+    class Meta:
+        db_table = 'video_metadata'
+
+
+class PersonDetection(models.Model):
+    """사람 감지 및 속성 정보"""
+    frame = models.ForeignKey('Frame', on_delete=models.CASCADE, related_name='person_detections')
+    
+    # 기본 감지 정보
+    person_id = models.IntegerField()  # 프레임 내 사람 ID
+    track_id = models.IntegerField(null=True, blank=True)  # 추적 ID (같은 사람)
+    
+    # 바운딩 박스 정보
+    bbox_x1 = models.FloatField()
+    bbox_y1 = models.FloatField()
+    bbox_x2 = models.FloatField()
+    bbox_y2 = models.FloatField()
+    confidence = models.FloatField()
+    
+    # 외형 속성
+    gender_estimation = models.CharField(max_length=20, default='unknown')  # male, female, unknown
+    gender_confidence = models.FloatField(default=0.0)
+    
+    age_group = models.CharField(max_length=30, default='unknown')  # child, young_adult, adult, elderly
+    age_confidence = models.FloatField(default=0.0)
+    
+    # 의상 정보
+    upper_body_color = models.CharField(max_length=30, default='unknown')
+    upper_color_confidence = models.FloatField(default=0.0)
+    lower_body_color = models.CharField(max_length=30, default='unknown')
+    lower_color_confidence = models.FloatField(default=0.0)
+    
+    # 자세/행동 정보
+    posture = models.CharField(max_length=50, default='unknown')  # standing, sitting, walking 등
+    posture_confidence = models.FloatField(default=0.0)
+    
+    # 상세 분석 데이터 (JSON)
+    detailed_attributes = models.JSONField(default=dict)
+    
+    # 추가 메타데이터
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Person {self.person_id} in Frame {self.frame.image_id}"
+    
+    class Meta:
+        db_table = 'person_detections'
+        indexes = [
+            models.Index(fields=['track_id']),
+            models.Index(fields=['gender_estimation', 'gender_confidence']),
+            models.Index(fields=['upper_body_color']),
+        ]
+
+
+class TemporalStatistics(models.Model):
+    """시간별 통계 정보"""
+    video = models.ForeignKey('Video', on_delete=models.CASCADE, related_name='temporal_stats')
+    
+    # 시간 구간 정보
+    start_timestamp = models.FloatField()  # 시작 시간 (초)
+    end_timestamp = models.FloatField()    # 종료 시간 (초)
+    duration = models.FloatField()         # 구간 길이 (초)
+    
+    # 사람 관련 통계
+    total_persons_detected = models.IntegerField(default=0)
+    unique_persons_estimated = models.IntegerField(default=0)
+    
+    # 성별 분포
+    male_count = models.IntegerField(default=0)
+    female_count = models.IntegerField(default=0)
+    unknown_gender_count = models.IntegerField(default=0)
+    gender_analysis_confidence = models.FloatField(default=0.0)
+    
+    # 나이 분포
+    child_count = models.IntegerField(default=0)
+    adult_count = models.IntegerField(default=0)
+    elderly_count = models.IntegerField(default=0)
+    
+    # 활동 밀도
+    activity_density = models.FloatField(default=0.0)  # 단위 시간당 사람 수
+    movement_intensity = models.FloatField(default=0.0)  # 움직임 강도
+    
+    # 의상 색상 분포 (상위 3개)
+    top_colors = models.JSONField(default=list)
+    
+    # 상세 통계 데이터
+    detailed_statistics = models.JSONField(default=dict)
+    
+    # 분석 메타데이터
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Stats {self.start_timestamp:.1f}-{self.end_timestamp:.1f}s for {self.video.original_name}"
+    
+    @property
+    def gender_ratio(self):
+        """성비 계산"""
+        total = self.male_count + self.female_count
+        if total == 0:
+            return {'male_percentage': 0, 'female_percentage': 0}
+        return {
+            'male_percentage': (self.male_count / total) * 100,
+            'female_percentage': (self.female_count / total) * 100
+        }
+    
+    class Meta:
+        db_table = 'temporal_statistics'
+        indexes = [
+            models.Index(fields=['start_timestamp', 'end_timestamp']),
+            models.Index(fields=['activity_density']),
+        ]
+
+
+class ObjectTracking(models.Model):
+    """객체 추적 정보"""
+    video = models.ForeignKey('Video', on_delete=models.CASCADE, related_name='object_tracks')
+    
+    # 추적 기본 정보
+    track_id = models.IntegerField()
+    object_class = models.CharField(max_length=50)
+    
+    # 시간 범위
+    first_appearance = models.FloatField()  # 첫 등장 시간
+    last_appearance = models.FloatField()   # 마지막 등장 시간
+    total_duration = models.FloatField()    # 총 등장 시간
+    
+    # 추적 품질
+    tracking_confidence = models.FloatField(default=0.0)
+    total_detections = models.IntegerField(default=0)
+    tracking_quality = models.CharField(max_length=20, default='medium')  # high, medium, low
+    
+    # 이동 정보
+    movement_path = models.JSONField(default=list)  # 중심점 좌표들
+    movement_distance = models.FloatField(default=0.0)
+    average_speed = models.FloatField(default=0.0)
+    
+    # 객체 속성 (사람인 경우)
+    person_attributes = models.JSONField(null=True, blank=True)
+    
+    # 상호작용 정보  
+    interacted_objects = models.JSONField(default=list)  # 상호작용한 다른 객체들
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Track {self.track_id}: {self.object_class} in {self.video.original_name}"
+    
+    class Meta:
+        db_table = 'object_tracking'
+        unique_together = ['video', 'track_id', 'object_class']
+        indexes = [
+            models.Index(fields=['track_id']),
+            models.Index(fields=['object_class']),
+            models.Index(fields=['first_appearance', 'last_appearance']),
+        ]
+
+
+class VideoSearchIndex(models.Model):
+    """비디오 검색 인덱스 - 빠른 검색을 위한 전처리된 데이터"""
+    video = models.OneToOneField('Video', on_delete=models.CASCADE, related_name='search_index')
+    
+    # 텍스트 검색용
+    searchable_text = models.TextField(default='')  # 모든 캡션, OCR 텍스트 통합
+    keywords = models.JSONField(default=list)       # 추출된 키워드들
+    
+    # 객체 검색용
+    all_objects = models.JSONField(default=list)    # 감지된 모든 객체들
+    dominant_objects = models.JSONField(default=list)  # 주요 객체들
+    object_counts = models.JSONField(default=dict)  # 객체별 등장 횟수
+    
+    # 사람 검색용
+    person_attributes_summary = models.JSONField(default=dict)  # 사람 속성 요약
+    clothing_colors = models.JSONField(default=list)           # 의상 색상들
+    gender_distribution = models.JSONField(default=dict)       # 성별 분포
+    
+    # 시간/환경 검색용
+    weather_tags = models.JSONField(default=list)     # 날씨 태그들
+    time_tags = models.JSONField(default=list)        # 시간대 태그들  
+    location_tags = models.JSONField(default=list)    # 장소 태그들
+    
+    # 시각적 특성
+    visual_features = models.JSONField(default=dict)  # 색상, 밝기, 대비 등
+    scene_complexity_avg = models.FloatField(default=0.0)
+    
+    # 검색 가중치 (검색 품질 향상용)
+    search_weights = models.JSONField(default=dict)
+    
+    # 인덱스 메타데이터
+    last_updated = models.DateTimeField(auto_now=True)
+    index_version = models.CharField(max_length=20, default='1.0')
+    
+    def __str__(self):
+        return f"Search Index for {self.video.original_name}"
+    
+    class Meta:
+        db_table = 'video_search_index'
+
+
+class SearchQuery(models.Model):
+    """검색 쿼리 로그 및 결과 캐싱"""
+    query_text = models.TextField()
+    query_hash = models.CharField(max_length=64, unique=True)  # 쿼리 해시값
+    
+    # 검색 조건
+    search_conditions = models.JSONField(default=dict)
+    
+    # 검색 결과
+    matching_videos = models.JSONField(default=list)
+    result_count = models.IntegerField(default=0)
+    
+    # 성능 메트릭
+    search_duration_ms = models.IntegerField(default=0)
+    cache_hit = models.BooleanField(default=False)
+    
+    # 사용 통계
+    usage_count = models.IntegerField(default=1)
+    last_used = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Query: {self.query_text[:50]}..."
+    
+    class Meta:
+        db_table = 'search_queries'
+        indexes = [
+            models.Index(fields=['query_hash']),
+            models.Index(fields=['last_used']),
+        ]
