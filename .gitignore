@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 
 # Virtual environment
-myenv/
+myenv2/
 
 # macOS
 .DS_Store
@@ -13,3 +13,7 @@ node_modules/
 npm-debug.log*
 package-lock.json
 .env
+myenv*/
+.venv/
+venv/
+env/
