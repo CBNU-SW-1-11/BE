@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+myenv/
+
+# macOS
+.DS_Store
+
+# Node
+node_modules/
+npm-debug.log*
+package-lock.json
+.env

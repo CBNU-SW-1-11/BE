@@ -94,7 +94,7 @@ class LangChainManager:
             ),
             'mixtral': GroqLLM(
                 api_key=groq_key,
-                model='llama3-8b-8192'
+                model='llama-3.1-8b-instant'
             )
         }
         
@@ -237,7 +237,7 @@ class AnthropicLLM(LLM):
 # Groq용 커스텀 LLM 클래스 
 class GroqLLM(LLM):
     client: Optional[Any] = None
-    model: str = 'llama3-8b-8192'
+    model: str = 'llama-3.1-8b-instant'
     temperature: float = 0.7
     max_tokens: int = 1024
     
@@ -245,7 +245,7 @@ class GroqLLM(LLM):
     class Config:
         arbitrary_types_allowed = True
     
-    def __init__(self, api_key: str, model: str = 'llama3-8b-8192', **kwargs):
+    def __init__(self, api_key: str, model: str = 'llama-3.1-8b-instant', **kwargs):
         # client를 kwargs에 추가하여 Pydantic 검증 통과
         kwargs['client'] = Groq(api_key=api_key)
         super().__init__(model=model, **kwargs)

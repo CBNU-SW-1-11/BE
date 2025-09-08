@@ -258,13 +258,16 @@ class ConflictResolution(models.Model):
         ordering = ['-created_at']
 
 # models.py - 고급 분석 기능을 위한 모델 확장
+# chat/models.py - 비용 절약을 위한 모델 확장
 
 from django.db import models
 from django.contrib.auth.models import User
 import json
+import os
+from datetime import datetime
 
+# 기존 Video 모델에 추가 필드
 class Video(models.Model):
-    """비디오 파일 정보"""
     filename = models.CharField(max_length=255)
     original_name = models.CharField(max_length=255)
     file_path = models.CharField(max_length=500)
@@ -283,31 +286,178 @@ class Video(models.Model):
         default='pending'
     )
     
-    # 고급 분석 관련 추가 필드
-    analysis_type = models.CharField(
-        max_length=20,
-        choices=[
-            ('basic', 'Basic'),
-            ('enhanced', 'Enhanced'),
-            ('comprehensive', 'Comprehensive'),
-            ('custom', 'Custom')
-        ],
-        default='enhanced'
-    )
+    # 🔥 비용 절약을 위한 새로운 필드들
+    image_analysis_completed = models.BooleanField(default=False)  # 이미지 분석 완료 여부
+    image_analysis_date = models.DateTimeField(null=True, blank=True)  # 이미지 분석 완료 일시
+    chat_analysis_json_path = models.CharField(max_length=500, blank=True)  # 채팅 분석 JSON 경로
+    total_chat_count = models.IntegerField(default=0)  # 총 채팅 횟수
     
-    # 사용된 고급 기능들
-    features_used = models.JSONField(default=dict, blank=True)
-    # 예: {"clip_analysis": True, "ocr": True, "vqa": False, "scene_graph": False}
-    
-    # 빠른 액세스를 위한 분석 요약 정보
-    analysis_summary = models.JSONField(default=dict, blank=True)
-    # 예: {"dominant_objects": ["person", "car"], "scene_types": ["outdoor", "urban"], "total_objects": 25}
+    # API 비용 추적
+    api_cost_tracking = models.JSONField(default=dict, blank=True)
+    # 예: {
+    #   "total_api_calls": 5,
+    #   "image_analysis_calls": 1,
+    #   "text_only_calls": 4,
+    #   "estimated_cost_usd": 0.15,
+    #   "models_used": ["gpt-4o-mini", "claude-3.5"],
+    #   "last_analysis_cost": 0.05
+    # }
 
     def __str__(self):
-        return f"{self.original_name} ({self.analysis_status})"
+        return f"{self.original_name} ({'분석완료' if self.image_analysis_completed else '분석대기'})"
+
+    def get_analysis_cost_summary(self):
+        """분석 비용 요약 반환"""
+        costs = self.api_cost_tracking
+        return {
+            'total_calls': costs.get('total_api_calls', 0),
+            'image_calls': costs.get('image_analysis_calls', 0),
+            'text_calls': costs.get('text_only_calls', 0),
+            'estimated_cost': costs.get('estimated_cost_usd', 0.0),
+            'cost_per_chat': costs.get('estimated_cost_usd', 0.0) / max(self.total_chat_count, 1)
+        }
+    
+    def increment_chat_count(self, is_image_analysis=False, estimated_cost=0.0):
+        """채팅 카운트 및 비용 추적 증가"""
+        self.total_chat_count += 1
+        
+        if not self.api_cost_tracking:
+            self.api_cost_tracking = {}
+        
+        self.api_cost_tracking['total_api_calls'] = self.api_cost_tracking.get('total_api_calls', 0) + 1
+        self.api_cost_tracking['estimated_cost_usd'] = self.api_cost_tracking.get('estimated_cost_usd', 0.0) + estimated_cost
+        
+        if is_image_analysis:
+            self.api_cost_tracking['image_analysis_calls'] = self.api_cost_tracking.get('image_analysis_calls', 0) + 1
+            self.image_analysis_completed = True
+            self.image_analysis_date = datetime.now()
+        else:
+            self.api_cost_tracking['text_only_calls'] = self.api_cost_tracking.get('text_only_calls', 0) + 1
+        
+        self.save()
 
     class Meta:
         ordering = ['-uploaded_at']
+
+
+class ChatSession(models.Model):
+    """채팅 세션 추적 - 비용 분석용"""
+    video = models.ForeignKey(Video, on_delete=models.CASCADE, related_name='chat_sessions')
+    session_id = models.CharField(max_length=100)  # 브라우저 세션 ID
+    
+    # 세션 정보
+    started_at = models.DateTimeField(auto_now_add=True)
+    last_activity = models.DateTimeField(auto_now=True)
+    total_messages = models.IntegerField(default=0)
+    
+    # 첫 번째 메시지 (이미지 분석)
+    first_message = models.TextField(blank=True)
+    first_message_cost = models.FloatField(default=0.0)
+    image_analysis_performed = models.BooleanField(default=False)
+    
+    # 후속 메시지들 (텍스트 기반)
+    subsequent_messages_cost = models.FloatField(default=0.0)
+    
+    # 사용된 모델들
+    models_used = models.JSONField(default=list)
+    
+    def __str__(self):
+        return f"Session {self.session_id} for {self.video.original_name}"
+    
+    @property
+    def total_session_cost(self):
+        return self.first_message_cost + self.subsequent_messages_cost
+    
+    @property
+    def cost_per_message(self):
+        if self.total_messages == 0:
+            return 0
+        return self.total_session_cost / self.total_messages
+
+    class Meta:
+        db_table = 'chat_sessions'
+        indexes = [
+            models.Index(fields=['session_id']),
+            models.Index(fields=['started_at']),
+        ]
+
+
+class CostAnalysis(models.Model):
+    """API 비용 분석 전용 모델"""
+    
+    # 일별/월별 집계
+    date = models.DateField()
+    period_type = models.CharField(
+        max_length=10,
+        choices=[('daily', '일별'), ('monthly', '월별'), ('yearly', '연별')],
+        default='daily'
+    )
+    
+    # 비용 통계
+    total_api_calls = models.IntegerField(default=0)
+    image_analysis_calls = models.IntegerField(default=0)  # 비싼 호출
+    text_only_calls = models.IntegerField(default=0)       # 저렴한 호출
+    
+    # 모델별 사용량
+    model_usage = models.JSONField(default=dict)
+    # 예: {
+    #   "gpt-4o-mini": {"calls": 10, "cost": 0.05},
+    #   "claude-3.5": {"calls": 5, "cost": 0.12},
+    #   "groq-llama": {"calls": 20, "cost": 0.01}
+    # }
+    
+    # 비용 정보
+    estimated_total_cost = models.FloatField(default=0.0)
+    cost_by_type = models.JSONField(default=dict)
+    # 예: {
+    #   "image_analysis": 0.15,
+    #   "text_generation": 0.03,
+    #   "embedding": 0.01
+    # }
+    
+    # 최적화 메트릭
+    cost_efficiency_score = models.FloatField(default=0.0)  # 비용 대비 효율성
+    savings_from_caching = models.FloatField(default=0.0)   # 캐싱으로 절약된 비용
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Cost Analysis {self.date} ({self.period_type}): ${self.estimated_total_cost:.3f}"
+    
+    @classmethod
+    def get_daily_summary(cls, date):
+        """특정 날짜의 비용 요약"""
+        try:
+            return cls.objects.get(date=date, period_type='daily')
+        except cls.DoesNotExist:
+            return None
+    
+    @classmethod
+    def calculate_monthly_savings(cls, year, month):
+        """월별 절약 효과 계산"""
+        from django.db.models import Sum
+        monthly_data = cls.objects.filter(
+            date__year=year,
+            date__month=month,
+            period_type='daily'
+        )
+        
+        total_cost = monthly_data.aggregate(Sum('estimated_total_cost'))['estimated_total_cost__sum'] or 0
+        total_savings = monthly_data.aggregate(Sum('savings_from_caching'))['savings_from_caching__sum'] or 0
+        
+        return {
+            'total_cost': total_cost,
+            'total_savings': total_savings,
+            'savings_percentage': (total_savings / (total_cost + total_savings)) * 100 if (total_cost + total_savings) > 0 else 0
+        }
+
+    class Meta:
+        db_table = 'cost_analysis'
+        unique_together = ['date', 'period_type']
+        indexes = [
+            models.Index(fields=['date', 'period_type']),
+            models.Index(fields=['estimated_total_cost']),
+        ]
 
 
 class VideoAnalysis(models.Model):

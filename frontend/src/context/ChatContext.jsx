@@ -3,6 +3,7 @@
 import React, { createContext, useState, useContext, useRef, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { clusterResponses, extractResponseFeatures } from "../utils/similarityAnalysis";
+import { safeJsonParse } from '../utils/safeJson';
 
 // Context 생성
 const ChatContext = createContext(null);
@@ -175,7 +176,8 @@ export const ChatProvider = ({ children }) => {
   useEffect(() => {
     if (user?.settings?.preferredModels) {
       try {
-        const preferredModels = JSON.parse(user.settings.preferredModels);
+        const preferredModels = safeJsonParse(user?.settings?.preferredModels, []);
+
         if (Array.isArray(preferredModels) && preferredModels.length > 0) {
           setSelectedModels(preferredModels);
         }
@@ -393,7 +395,7 @@ useEffect(() => {
         
         for (const line of lines) {
           try {
-            const data = JSON.parse(line);
+            const data = safeJsonParse(line, null);
             console.log('Received data:', data);
             
             if (data.type === 'bot_response' && selectedModels.includes(data.botId)) {
@@ -569,7 +571,7 @@ useEffect(() => {
         
         for (const line of lines) {
           try {
-            const data = JSON.parse(line);
+            const data = safeJsonParse(line, null);
             console.log('Received image analysis data:', data);
             
             if (data.type === 'bot_response' && selectedModels.includes(data.botId)) {

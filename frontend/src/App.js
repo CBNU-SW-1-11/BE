@@ -50,6 +50,7 @@
 // }
 
 // export default App;
+import { safeJsonParse } from './utils/safeJson';
 
 import React, { useEffect } from "react";
 import { Provider, useDispatch } from "react-redux";
@@ -79,7 +80,7 @@ function AuthInitializer({ children }) {
     const token = localStorage.getItem("accessToken");
     const user = localStorage.getItem("user");
     if (token && user) {
-      dispatch(loginSuccess({ token, user: JSON.parse(user) }));
+      dispatch(loginSuccess({ token, user: safeJsonParse(user, {}) }));
     }
   }, [dispatch]);
   return children;

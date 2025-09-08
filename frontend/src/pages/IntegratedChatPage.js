@@ -1,4 +1,4 @@
-// pages/IntegratedChatPage.js - 중복 제거된 버전
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { videoAnalysisService } from '../services/videoAnalysisService';
@@ -10,6 +10,7 @@ const IntegratedChatPage = () => {
   const [loading, setLoading] = useState(false);
   const [currentVideo, setCurrentVideo] = useState(null);
   const [availableVideos, setAvailableVideos] = useState([]);
+  const [expandedResults, setExpandedResults] = useState(new Set());
   const chatContainerRef = useRef(null);
 
   useEffect(() => {
@@ -38,7 +39,6 @@ const IntegratedChatPage = () => {
 
   // 시간 범위 파싱 함수 개선
   const parseTimeRange = (message) => {
-    // "3:00~5:00", "3:00-5:00", "3분~5분" 등의 패턴 감지
     const timePatterns = [
       /(\d+):(\d+)\s*[-~]\s*(\d+):(\d+)/,  // 3:00-5:00 형태
       /(\d+)분\s*[-~]\s*(\d+)분/,          // 3분-5분 형태
@@ -68,10 +68,8 @@ const IntegratedChatPage = () => {
   const detectSearchIntent = (message) => {
     const messageLower = message.toLowerCase();
     
-    // 시간대별 분석 키워드
     const timeAnalysisKeywords = ['성비', '분포', '통계', '비율', '몇명', '얼마나'];
-    // 객체 추적 키워드  
-    const trackingKeywords = ['추적', '지나간', '상의', '모자', '색깔', '옷'];
+    const trackingKeywords = ['추적', '지나간', '상의', '모자', '색깔', '옷', '찾아줘', '찾아'];
     
     const hasTimeRange = parseTimeRange(message) !== null;
     const hasTimeAnalysis = timeAnalysisKeywords.some(keyword => messageLower.includes(keyword));
@@ -114,7 +112,26 @@ const IntegratedChatPage = () => {
     return response_text;
   };
 
-  // 메시지 전송 함수 (단일 정의)
+  // 추적 결과를 표시 가능한 아이템으로 변환
+  const convertTrackingResultsToItems = (trackingResults, videoId) => {
+    if (!trackingResults || !Array.isArray(trackingResults)) {
+      return [];
+    }
+
+    return trackingResults.slice(0, 12).map((result, index) => ({
+      time: videoAnalysisService.timeUtils.secondsToTimeString(result.timestamp),
+      seconds: result.timestamp,
+      frame_id: result.frame_id,
+      desc: result.description || `객체 감지`,
+      score: result.confidence || 0.5,
+      reasons: result.match_reasons || [],
+      thumbUrl: videoAnalysisService.getFrameImageUrl(videoId, result.frame_id),
+      thumbBBoxUrl: videoAnalysisService.getFrameImageUrl(videoId, result.frame_id, true),
+      clipUrl: videoAnalysisService.getClipUrl(videoId, result.timestamp, 4)
+    }));
+  };
+
+  // 메시지 전송 함수
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || loading) return;
     if (!currentVideo) {
@@ -143,7 +160,7 @@ const IntegratedChatPage = () => {
       console.log('📋 감지된 검색 의도:', searchIntent);
       
       let response;
-      let searchResults = null;
+      let displayItems = [];
       let searchType = 'general';
 
       if (searchIntent === 'time-analysis') {
@@ -159,7 +176,6 @@ const IntegratedChatPage = () => {
               userMessage
             );
             searchType = 'time-analysis';
-            searchResults = response.result;
             
             // 결과 포맷팅
             if (response.result && response.result.total_persons !== undefined) {
@@ -201,26 +217,32 @@ const IntegratedChatPage = () => {
             timeRange || {}
           );
           searchType = 'object-tracking';
-          searchResults = response.tracking_results;
           
-          // 결과 포맷팅
-          if (response.tracking_results && response.tracking_results.length > 0) {
-            const results = response.tracking_results;
-            response.formatted_response = 
-              `🎯 "${response.tracking_target}" 추적 결과:\n\n` +
-              `📍 총 ${results.length}개 장면에서 발견\n\n`;
+          // 추적 결과를 표시 가능한 아이템으로 변환
+          if (response.tracking_results && Array.isArray(response.tracking_results)) {
+            displayItems = convertTrackingResultsToItems(response.tracking_results, currentVideo.id);
             
-            results.slice(0, 5).forEach((result, index) => {
+            const resultCount = response.tracking_results.length;
+            response.formatted_response = 
+              `🎯 "${response.tracking_target || userMessage}" 추적 결과:\n\n` +
+              `📍 총 ${resultCount}개 장면에서 발견\n\n`;
+            
+            response.tracking_results.slice(0, 5).forEach((result, index) => {
               const timeStr = videoAnalysisService.timeUtils.secondsToTimeString(result.timestamp);
+              const confidenceStr = (result.confidence * 100).toFixed(1);
               response.formatted_response += 
-                `${index + 1}. ${timeStr} - ${result.description} (신뢰도: ${(result.confidence * 100).toFixed(1)}%)\n`;
+                `${index + 1}. ${timeStr} - ${result.description} (신뢰도: ${confidenceStr}%)\n`;
             });
             
-            if (results.length > 5) {
-              response.formatted_response += `\n... 외 ${results.length - 5}개 장면 더`;
+            if (resultCount > 5) {
+              response.formatted_response += `\n... 외 ${resultCount - 5}개 장면 더`;
+            }
+
+            if (displayItems.length > 0) {
+              response.formatted_response += `\n\n📸 아래에서 실제 프레임 이미지를 확인하세요!`;
             }
           } else {
-            response.formatted_response = `🔍 "${response.tracking_target}"에 해당하는 객체를 찾을 수 없습니다.`;
+            response.formatted_response = `🔍 "${response.tracking_target || userMessage}"에 해당하는 객체를 찾을 수 없습니다.`;
           }
         } catch (error) {
           console.error('❌ 객체 추적 실패:', error);
@@ -235,10 +257,50 @@ const IntegratedChatPage = () => {
           // 검색 결과가 있으면 프레임 검색으로 처리
           if (response.search_results && Array.isArray(response.search_results)) {
             searchType = 'frame-search';
-            searchResults = response.search_results;
+            displayItems = response.search_results.map(result => ({
+              time: videoAnalysisService.timeUtils.secondsToTimeString(result.timestamp || 0),
+              seconds: result.timestamp || 0,
+              frame_id: result.frame_id,
+              desc: result.caption || result.description || '프레임',
+              score: result.match_score || result.score || 0.5,
+              thumbUrl: videoAnalysisService.getFrameImageUrl(currentVideo.id, result.frame_id),
+              thumbBBoxUrl: videoAnalysisService.getFrameImageUrl(currentVideo.id, result.frame_id, true),
+              clipUrl: videoAnalysisService.getClipUrl(currentVideo.id, result.timestamp || 0, 4)
+            }));
             
             // 검색 응답 포맷팅
-            response.formatted_response = formatSearchResponse(userMessage, searchResults);
+            response.formatted_response = formatSearchResponse(userMessage, response.search_results);
+          }
+          
+          // 검색 결과가 없지만 객체 검색 의도가 있는 경우, 객체 추적도 시도해보기
+          else if (userMessage.includes('찾아') && (!response.search_results || response.search_results.length === 0)) {
+            console.log('🔄 일반 검색에서 결과가 없어서 객체 추적도 시도해봅니다...');
+            try {
+              const trackingResponse = await videoAnalysisService.trackObjectInVideo(
+                currentVideo.id,
+                userMessage,
+                {}
+              );
+              
+              if (trackingResponse.tracking_results && trackingResponse.tracking_results.length > 0) {
+                searchType = 'object-tracking';
+                displayItems = convertTrackingResultsToItems(trackingResponse.tracking_results, currentVideo.id);
+                response.formatted_response = 
+                  `🎯 "${trackingResponse.tracking_target || userMessage}" 객체 추적 결과:\n\n` +
+                  `📍 총 ${trackingResponse.tracking_results.length}개 장면에서 발견\n\n`;
+                
+                trackingResponse.tracking_results.slice(0, 5).forEach((result, index) => {
+                  const timeStr = videoAnalysisService.timeUtils.secondsToTimeString(result.timestamp);
+                  const confidenceStr = (result.confidence * 100).toFixed(1);
+                  response.formatted_response += 
+                    `${index + 1}. ${timeStr} - ${result.description} (신뢰도: ${confidenceStr}%)\n`;
+                });
+                
+                response.formatted_response += `\n📸 아래에서 실제 프레임 이미지를 확인하세요!`;
+              }
+            } catch (trackingError) {
+              console.log('🔄 객체 추적도 실패:', trackingError.message);
+            }
           }
         } catch (error) {
           console.error('❌ 일반 채팅 실패:', error);
@@ -253,7 +315,7 @@ const IntegratedChatPage = () => {
         content: response.formatted_response || response.response || response.error || '응답을 생성할 수 없습니다.',
         timestamp: new Date(),
         searchType: searchType,
-        searchResults: searchResults,
+        items: displayItems, // 표시할 아이템들
         originalResponse: response
       };
 
@@ -261,7 +323,8 @@ const IntegratedChatPage = () => {
       
       console.log('✅ 메시지 처리 완료:', {
         searchType,
-        hasResults: !!searchResults,
+        hasItems: displayItems.length > 0,
+        itemCount: displayItems.length,
         responseLength: botMessage.content.length
       });
 
@@ -283,56 +346,6 @@ const IntegratedChatPage = () => {
   };
 
   const handleKeyPress = (e) => {
-    // 시간 범위 파싱 함수 개선
-    const parseTimeRange = (message) => {
-      // "3:00~5:00", "3:00-5:00", "3분~5분" 등의 패턴 감지
-      const timePatterns = [
-        /(\d+):(\d+)\s*[-~]\s*(\d+):(\d+)/,  // 3:00-5:00 형태
-        /(\d+)분\s*[-~]\s*(\d+)분/,          // 3분-5분 형태
-        /(\d+)\s*[-~]\s*(\d+)분/,            // 3-5분 형태
-      ];
-
-      for (const pattern of timePatterns) {
-        const match = message.match(pattern);
-        if (match) {
-          if (pattern.source.includes(':')) {
-            return {
-              start: `${match[1]}:${match[2]}`,
-              end: `${match[3]}:${match[4]}`
-            };
-          } else {
-            return {
-              start: `${match[1]}:00`,
-              end: `${match[2]}:00`
-            };
-          }
-        }
-      }
-      return null;
-    };
-
-    // 검색 타입 감지 개선
-    const detectSearchIntent = (message) => {
-      const messageLower = message.toLowerCase();
-      
-      // 시간대별 분석 키워드
-      const timeAnalysisKeywords = ['성비', '분포', '통계', '비율', '몇명', '얼마나'];
-      // 객체 추적 키워드  
-      const trackingKeywords = ['추적', '지나간', '상의', '모자', '색깔', '옷'];
-      
-      const hasTimeRange = parseTimeRange(message) !== null;
-      const hasTimeAnalysis = timeAnalysisKeywords.some(keyword => messageLower.includes(keyword));
-      const hasTracking = trackingKeywords.some(keyword => messageLower.includes(keyword));
-
-      if (hasTimeRange && hasTimeAnalysis) {
-        return 'time-analysis';
-      } else if (hasTracking || messageLower.includes('남성') || messageLower.includes('여성')) {
-        return 'object-tracking';
-      } else {
-        return 'general-search';
-      }
-    };
-
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -346,124 +359,270 @@ const IntegratedChatPage = () => {
     });
   };
 
-  // 검색 결과 렌더링 (이미지 포함)
+  // 검색 결과 렌더링 (가로 슬라이드 형식)
   const renderSearchResults = (message) => {
-    if (!message.searchResults) return null;
+    if (!message.items || message.items.length === 0) return null;
 
     if (message.searchType === 'time-analysis') {
-      const result = message.searchResults;
-      return (
-        <div style={{ 
-          marginTop: '10px', 
-          padding: '10px', 
-          backgroundColor: '#f0f8ff', 
-          borderRadius: '5px',
-          fontSize: '14px'
-        }}>
-          <strong>📊 상세 분석 데이터:</strong>
-          <div style={{ marginTop: '5px' }}>
-            {result.analysis_period && <div>📅 분석 기간: {result.analysis_period}</div>}
-            {result.movement_patterns && <div>🔄 이동 패턴: {result.movement_patterns}</div>}
-          </div>
-        </div>
-      );
-    }
-
-    if (message.searchType === 'object-tracking' && Array.isArray(message.searchResults)) {
-      return (
-        <div style={{ 
-          marginTop: '10px', 
-          padding: '10px', 
-          backgroundColor: '#f0fff0', 
-          borderRadius: '5px',
-          fontSize: '14px'
-        }}>
-          <strong>🎯 추적된 위치들:</strong>
-          {message.searchResults.slice(0, 3).map((result, index) => (
-            <div key={index} style={{ marginTop: '5px' }}>
-              {videoAnalysisService.timeUtils.secondsToTimeString(result.timestamp)} 
-              {result.match_reasons && result.match_reasons.length > 0 && 
-                ` - ${result.match_reasons.join(', ')}`
-              }
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    // 프레임 검색 결과 - 이미지 포함
-    if (message.searchType === 'frame-search' && Array.isArray(message.searchResults)) {
-      return (
-        <div style={{ 
-          marginTop: '15px', 
-          padding: '10px', 
-          backgroundColor: '#f8f9fa', 
-          borderRadius: '8px'
-        }}>
-          <strong>🖼️ 검색된 프레임들:</strong>
+      const result = message.originalResponse?.result;
+      if (result) {
+        return (
           <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-            gap: '10px', 
-            marginTop: '10px' 
+            marginTop: '10px', 
+            padding: '10px', 
+            backgroundColor: '#f0f8ff', 
+            borderRadius: '5px',
+            fontSize: '14px'
           }}>
-            {message.searchResults.slice(0, 6).map((result, index) => (
-              <div key={index} style={{ 
+            <strong>📊 상세 분석 데이터:</strong>
+            <div style={{ marginTop: '5px' }}>
+              {result.analysis_period && <div>📅 분석 기간: {result.analysis_period}</div>}
+              {result.movement_patterns && <div>🔄 이동 패턴: {result.movement_patterns}</div>}
+            </div>
+          </div>
+        );
+      }
+      return null;
+    }
+
+    // 가로 슬라이드 형식의 검색 결과
+    return (
+      <div style={{ 
+        marginTop: '15px', 
+        padding: '10px', 
+        backgroundColor: '#f8f9fa', 
+        borderRadius: '8px'
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          marginBottom: '10px'
+        }}>
+          <strong>
+            {message.searchType === 'object-tracking' ? '🎯 추적된 장면들' : '🖼️ 검색된 프레임들'}
+          </strong>
+          <span style={{ fontSize: '12px', color: '#666' }}>
+            총 {message.items.length}개 (신뢰도 순)
+          </span>
+        </div>
+        
+        {/* 가로 스크롤 컨테이너 */}
+        <div style={{ 
+          display: 'flex',
+          overflowX: 'auto',
+          gap: '12px',
+          paddingBottom: '8px',
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#888 #f1f1f1'
+        }}>
+          {message.items.map((item, index) => (
+            <div 
+              key={index} 
+              style={{ 
+                minWidth: '200px',
+                width: '200px',
                 border: '1px solid #ddd', 
                 borderRadius: '8px', 
                 overflow: 'hidden',
-                backgroundColor: 'white'
+                backgroundColor: 'white',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                cursor: 'pointer',
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+              }}
+            >
+              {/* 신뢰도 배지 */}
+              <div style={{
+                position: 'relative'
               }}>
-                <img 
-                  src={videoAnalysisService.getFrameImageUrl(currentVideo?.id, result.frame_id)}
-                  alt={`프레임 ${result.frame_id}`}
-                  style={{ 
-                    width: '100%', 
-                    height: '120px', 
-                    objectFit: 'cover',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => {
-                    // 클릭시 큰 이미지로 보기
-                    const newWindow = window.open('', '_blank');
-                    newWindow.document.write(`
-                      <html>
-                        <head><title>프레임 ${result.frame_id}</title></head>
-                        <body style="margin:0; display:flex; justify-content:center; align-items:center; min-height:100vh; background:#000;">
-                          <img src="${videoAnalysisService.getFrameImageUrl(currentVideo?.id, result.frame_id)}" 
-                               style="max-width:90%; max-height:90%; object-fit:contain;" />
-                        </body>
-                      </html>
-                    `);
-                  }}
-                />
-                <div style={{ padding: '8px', fontSize: '12px' }}>
-                  <div><strong>프레임 #{result.frame_id}</strong></div>
-                  <div style={{ color: '#666' }}>
-                    {videoAnalysisService.timeUtils.secondsToTimeString(result.timestamp)}
+                <div style={{
+                  position: 'absolute',
+                  top: '5px',
+                  right: '5px',
+                  backgroundColor: item.score >= 0.8 ? '#28a745' : item.score >= 0.6 ? '#ffc107' : '#dc3545',
+                  color: 'white',
+                  padding: '2px 6px',
+                  borderRadius: '12px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  zIndex: 1
+                }}>
+                  {Math.round(item.score * 100)}%
+                </div>
+                
+                {item.thumbUrl && (
+                  <img 
+                    src={item.thumbUrl}
+                    alt={`프레임 ${item.frame_id}`}
+                    style={{ 
+                      width: '100%', 
+                      height: '120px', 
+                      objectFit: 'cover'
+                    }}
+                    onClick={() => {
+                      const newWindow = window.open('', '_blank');
+                      newWindow.document.write(`
+                        <html>
+                          <head><title>프레임 ${item.frame_id} - ${item.time}</title></head>
+                          <body style="margin:0; display:flex; flex-direction:column; justify-content:center; align-items:center; min-height:100vh; background:#000; color:white; font-family:Arial;">
+                            <img src="${item.thumbUrl}" style="max-width:90%; max-height:80%; object-fit:contain; margin-bottom:20px;" />
+                            <div style="max-width:80%; text-align:center; padding:20px;">
+                              <h3>${item.time} 시점 (신뢰도: ${Math.round(item.score * 100)}%)</h3>
+                              <p>${item.desc}</p>
+                              ${item.reasons && item.reasons.length > 0 ? `<small>매칭 이유: ${item.reasons.join(', ')}</small>` : ''}
+                            </div>
+                          </body>
+                        </html>
+                      `);
+                    }}
+                  />
+                )}
+              </div>
+              
+              <div style={{ padding: '8px', fontSize: '12px' }}>
+                <div style={{ 
+                  fontWeight: 'bold', 
+                  display: 'flex', 
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '4px'
+                }}>
+                  <span>#{item.frame_id}</span>
+                  <span style={{ fontSize: '11px', color: '#666' }}>{item.time}</span>
+                </div>
+                
+                <div style={{ 
+                  color: '#333', 
+                  lineHeight: '1.3',
+                  fontSize: '11px',
+                  marginBottom: '6px',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden'
+                }}>
+                  {item.desc}
+                </div>
+                
+                {item.reasons && item.reasons.length > 0 && (
+                  <div style={{ 
+                    color: '#007bff', 
+                    fontSize: '10px', 
+                    marginBottom: '6px',
+                    backgroundColor: '#e7f3ff',
+                    padding: '2px 4px',
+                    borderRadius: '3px'
+                  }}>
+                    {item.reasons[0]}
                   </div>
-                  <div style={{ color: '#666', marginTop: '4px' }}>
-                    신뢰도: {(result.match_score * 100).toFixed(1)}%
-                  </div>
-                  {result.matches && result.matches.length > 0 && (
-                    <div style={{ color: '#007bff', fontSize: '11px', marginTop: '2px' }}>
-                      {result.matches[0].match} 감지
-                    </div>
+                )}
+                
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '6px',
+                  justifyContent: 'space-between'
+                }}>
+                  {item.clipUrl && (
+                    <a 
+                      href={item.clipUrl} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      style={{ 
+                        fontSize: '10px', 
+                        color: '#007bff', 
+                        textDecoration: 'none',
+                        padding: '2px 6px',
+                        backgroundColor: '#e7f3ff',
+                        borderRadius: '3px',
+                        border: '1px solid #007bff'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = '#007bff';
+                        e.target.style.color = 'white';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = '#e7f3ff';
+                        e.target.style.color = '#007bff';
+                      }}
+                    >
+                      📹 클립
+                    </a>
+                  )}
+                  {item.thumbBBoxUrl && (
+                    <a 
+                      href={item.thumbBBoxUrl} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      style={{ 
+                        fontSize: '10px', 
+                        color: '#28a745', 
+                        textDecoration: 'none',
+                        padding: '2px 6px',
+                        backgroundColor: '#e8f5e8',
+                        borderRadius: '3px',
+                        border: '1px solid #28a745'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = '#28a745';
+                        e.target.style.color = 'white';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = '#e8f5e8';
+                        e.target.style.color = '#28a745';
+                      }}
+                    >
+                      🔍 박스
+                    </a>
                   )}
                 </div>
               </div>
-            ))}
-          </div>
-          {message.searchResults.length > 6 && (
-            <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '12px', color: '#666' }}>
-              ... 외 {message.searchResults.length - 6}개 프레임 더
             </div>
-          )}
+          ))}
         </div>
-      );
-    }
-
-    return null;
+        
+        {/* 스크롤 힌트 */}
+        {message.items.length > 3 && (
+          <div style={{ 
+            textAlign: 'center', 
+            fontSize: '11px', 
+            color: '#999', 
+            marginTop: '8px',
+            fontStyle: 'italic'
+          }}>
+            ← 좌우로 스크롤하여 더 많은 결과를 확인하세요 →
+          </div>
+        )}
+        
+        {/* 상위 결과 요약 */}
+        <div style={{ 
+          marginTop: '10px',
+          padding: '8px',
+          backgroundColor: 'white',
+          borderRadius: '5px',
+          fontSize: '12px'
+        }}>
+          <strong>💡 검색 요약:</strong>
+          <div style={{ marginTop: '4px', color: '#666' }}>
+            {message.items.length > 0 && (
+              <>
+                가장 높은 신뢰도: {Math.round(message.items[0].score * 100)}% 
+                {message.items.length > 1 && (
+                  <> • 평균 신뢰도: {Math.round(message.items.reduce((sum, item) => sum + item.score, 0) / message.items.length * 100)}%</>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -521,7 +680,7 @@ const IntegratedChatPage = () => {
             <h3>💬 AI와 대화를 시작해보세요!</h3>
             <p>예시 질문:</p>
             <div style={{ textAlign: 'left', maxWidth: '400px', margin: '0 auto' }}>
-              <p>• "이 영상에서 주황색 상의를 입은 남성이 지나간 장면을 추적해줘"</p>
+              <p>• "초록 옷 입은 사람 찾아줘"</p>
               <p>• "3:00~5:00 사이에 지나간 사람들의 성비 분포는?"</p>
               <p>• "사람이 나오는 장면 찾아"</p>
             </div>
@@ -562,7 +721,8 @@ const IntegratedChatPage = () => {
                   <span style={{ marginLeft: '10px' }}>
                     {message.searchType === 'time-analysis' ? '⏰' : 
                      message.searchType === 'object-tracking' ? '🎯' : 
-                     message.searchType === 'frame-search' ? '🖼️' : '💬'}
+                     message.searchType === 'frame-search' ? '🖼️' : 
+                     message.searchType === 'gender-analysis' ? '👥' : '💬'}
                   </span>
                 )}
               </div>

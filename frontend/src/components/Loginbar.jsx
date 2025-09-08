@@ -435,9 +435,7 @@ const Loginbar = ({ isOpen, onClose }) => {
   // 🔧 토큰 저장 함수 - 모든 가능한 키로 저장
   const saveAuthToken = (token, userData) => {
     // 일정 관리 시스템에서 찾는 모든 키에 저장
-    localStorage.setItem('access_token', token);
-    localStorage.setItem('token', token);
-    localStorage.setItem('authToken', token);
+   
     localStorage.setItem('accessToken', token);
     localStorage.setItem('user', JSON.stringify(userData));
     

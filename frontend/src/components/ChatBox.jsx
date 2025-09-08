@@ -1,4 +1,3 @@
-// paste.txt 수정된 내용 (주요 변경사항만)
 import React, { useState, useEffect, useRef } from "react";
 import { useChat } from "../context/ChatContext";
 import ModelSelectionModal from "./ModelSelectionModal";
@@ -94,11 +93,7 @@ const ChatBox = () => {
       let hasUpdates = false;
       
       userMessages.forEach((message, index) => {
-        // Message ID: use requestId if available, otherwise use text+index combination
-        // const messageId = message.requestId || generateRequestId();
         const messageId = getMessageId(message, index);
-
-        
 
         if (updatedStates[messageId] === undefined) {
           updatedStates[messageId] = null; // null indicates 'analyzing' state
@@ -161,15 +156,13 @@ const ChatBox = () => {
     }
   }, [analysisResults, messages.optimal]);
 
-  // 기존 useEffect들... (변경 없음)
+  // 새 메시지가 추가될 때마다 스크롤을 맨 아래로 이동
   useEffect(() => {
-    const allModels = [...selectedModels, "optimal"];
-    allModels.forEach((modelId) => {
-      if (!messagesEndRefs.current[modelId]) {
-        messagesEndRefs.current[modelId] = React.createRef();
-      }
+    selectedModels.concat("optimal").forEach((modelId) => {
+      messagesEndRefs.current[modelId]?.current?.scrollIntoView({ behavior: "smooth" });
     });
-  }, [selectedModels]);
+  }, [messages, selectedModels]);
+
  const getModelColor = (modelId, messageId) => {
     if (!similarityGroups[messageId]) return "bg-gray-100";
     
@@ -204,9 +197,9 @@ const ChatBox = () => {
     
     return "bg-gray-100";
   };
-  // 
-    const handleSimilarityClick = (messageId) => {
-        console.log("유사도 분석 데이터 조회 시도:", messageId);
+  
+  const handleSimilarityClick = (messageId) => {
+    console.log("유사도 분석 데이터 조회 시도:", messageId);
     console.log("사용 가능한 유사도 그룹:", Object.keys(similarityGroups));
     
     // similarityGroups 에 full requestId key 로 매핑된 데이터 꺼냄
@@ -228,6 +221,7 @@ const ChatBox = () => {
   
     setIsSimilarityModalOpen(true);
   };
+
   const generateRequestId = () => {
     const timestamp = Date.now();
     const randomPart = Math.floor(Math.random() * 1000000)
@@ -277,9 +271,7 @@ const ChatBox = () => {
     );
   };
 
-  // 기존 컴포넌트들... (ModelStatusBadge, MessageFeatureBadge 등 변경 없음)
   const ModelStatusBadge = ({ modelId, messageId }) => {
-    // 기존 코드와 동일...
     if (!similarityGroups[messageId]) return null;
     
     const groups = similarityGroups[messageId].similarGroups;
@@ -359,7 +351,6 @@ const ChatBox = () => {
     }
   };
 
-  // 기존 MessageFeatureBadge 함수도 동일...
   const MessageFeatureBadge = ({ modelId, messageId }) => {
     if (!similarityGroups[messageId] || !similarityGroups[messageId].responseFeatures) {
       return null;
@@ -414,107 +405,216 @@ const ChatBox = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-white">
+    <div 
+      className="h-full w-full flex flex-col"
+      style={{ background: 'rgba(245, 242, 234, 0.4)' }}
+    >
+      {/* CSS 스타일을 위한 style 태그 추가 */}
+      <style>{`
+        .green-gradient-message {
+          background: linear-gradient(135deg, #5d7c5b, #8ba88a);
+          color: white;
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .green-gradient-message:hover::before {
+          left: 100%;
+        }
+        
+        /* 부드러운 호버 효과 */
+        .green-gradient-message:hover {
+          box-shadow: 0 8px 32px rgba(93, 124, 91, 0.3);
+          transform: translateY(-1px);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* 투명 배경 스타일 */
+        .chat-header {
+          background: rgba(245, 242, 234, 0.4);
+          backdrop-filter: blur(10px);
+          border-bottom: 1px solid rgba(139, 168, 138, 0.15);
+          height: 60px;
+        }
+
+        .chat-column {
+          background: rgba(255, 255, 255, 0.3);
+          backdrop-filter: blur(5px);
+        }
+
+        .chat-container {
+          height: calc(100% - 200px); /* 헤더(60px) + 컨트롤영역(60px) + 입력창(80px) 제외 */
+        }
+
+        /* 세련된 입력 영역 */
+        .aiofai-input-area {
+          background: rgba(245, 242, 234, 0.4);
+          backdrop-filter: blur(10px);
+          border-top: 1px solid rgba(139, 168, 138, 0.15);
+          padding: 1.2rem;
+          height: 80px;
+          display: flex;
+          align-items: center;
+        }
+
+        /* 사용자 메시지 스타일 - 미리보기 코드 스타일 적용 */
+        .aiofai-user-message {
+          background: linear-gradient(135deg, #5d7c5b, #8ba88a);
+          color: #ffffff;
+          padding: 1.2rem 1.5rem;
+          border-radius: 24px 24px 8px 24px;
+          max-width: 85%;
+          box-shadow: 0 8px 32px rgba(93, 124, 91, 0.3);
+          font-weight: 500;
+          line-height: 1.5;
+          position: relative;
+        }
+        
+        .aiofai-user-message::before {
+          position: absolute;
+          top: -10px;
+          right: -5px;
+          font-size: 0.8rem;
+        }
+
+        /* AI 봇 메시지 스타일 - 미리보기 코드 스타일 적용 */
+        .aiofai-bot-message {
+          background: rgba(255, 255, 255, 0.8);
+          backdrop-filter: blur(10px);
+          color: #2d3e2c;
+          border: 1px solid rgba(139, 168, 138, 0.2);
+          padding: 1.2rem 1.5rem;
+          border-radius: 24px 24px 24px 8px;
+          max-width: 85%;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+          line-height: 1.6;
+          position: relative;
+        }
+        
+        .aiofai-bot-message::before {
+          position: absolute;
+          top: -8px;
+          left: -5px;
+          font-size: 0.8rem;
+        }
+        
+        .aiofai-input-box {
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          padding: 0.4rem;
+          gap: 0.6rem;
+          max-width: 51.2rem;
+          margin: 0 auto;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          width: 80%;
+        }
+        
+        .aiofai-input-box:focus-within {
+          border-color: #8ba88a;
+          box-shadow: 0 0 0 3px rgba(93, 124, 91, 0.1);
+        }
+        
+        .input-field {
+          flex: 1;
+          border: none;
+          outline: none;
+          padding: 0.6rem;
+          background: transparent;
+          color: #2d3e2c;
+          font-size: 1rem;
+          border-radius: 12px;
+        }
+        
+        .input-field::placeholder {
+          color: rgba(45, 62, 44, 0.5);
+        }
+        
+        .aiofai-send-button {
+          color: #5d7c5b;
+          padding: 8px;
+          border-radius: 12px;
+          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          cursor: pointer;
+          border: none;
+          background: transparent;
+        }
+        
+        .aiofai-send-button:hover {
+          background: rgba(139, 168, 138, 0.1);
+          color: #5d7c5b;
+          transform: translateY(-1px) scale(1.05);
+          box-shadow: 0 8px 25px rgba(93, 124, 91, 0.2);
+          border-radius: 12px;
+        }
+
+        .aiofai-send-button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .aiofai-send-button:disabled:hover {
+          background: transparent;
+          color: rgba(93, 124, 91, 0.5);
+          transform: none;
+          box-shadow: none;
+        }
+
+        /* 컨트롤 영역 스타일 */
+        .control-area {
+          background: rgba(245, 242, 234, 0.4);
+          backdrop-filter: blur(10px);
+          border-bottom: 1px solid rgba(139, 168, 138, 0.15);
+          height: 60px;
+        }
+
+        /* 최적 답변 영역 스타일 */
+        .optimal-analysis {
+          background: rgba(255, 255, 255, 0.6);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(139, 168, 138, 0.2);
+          border-radius: 24px;
+          padding: 1.2rem 1.5rem;
+          margin-bottom: 1rem;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        }
+      `}</style>
+
       {/* AI model headers - fixed at top */}
-      <div className="grid border-b bg-white sticky top-0 z-20" 
-           style={{ gridTemplateColumns: `repeat(${selectedModels.length + 1}, minmax(0, 1fr))` }}>
-        {selectedModels.map((modelId) => (
-          <div key={modelId} className="p-4 text-xl font-semibold text-center border-r">
-            {modelId.toUpperCase()}
+      <div className="flex-shrink-0 flex chat-header w-full">
+        {selectedModels.concat("optimal").map((modelId) => (
+          <div 
+            key={modelId} 
+            className="px-4 py-2 text-lg font-semibold text-center border-r flex-1 whitespace-nowrap overflow-hidden text-ellipsis flex items-center justify-center"
+            style={{
+              color: '#2d3e2c',
+              borderRightColor: 'rgba(139, 168, 138, 0.3)'
+            }}
+          >
+            {modelId === "optimal" ? "최적의 답변" : modelId.toUpperCase()}
           </div>
         ))}
-        <div className="p-4 text-xl font-semibold text-center">
-          최적 답변
-        </div>
       </div>
 
-      {/* 수정된 컨트롤 영역 - 워크플로우 토글 추가 */}
-      <div className="flex-shrink-0 px-4 py-2 border-b bg-white">
-        <div className="flex justify-between items-center mb-2">
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setIsModalOpen(true)} 
-              className="flex items-center gap-2 py-2 px-4 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
-            >
-              <Settings size={16} />
-              AI 모델 선택 ({selectedModels.length})
-            </button>
-            
-            {/* LangGraph 워크플로우 토글 */}
-            <div className="flex items-center gap-2">
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={useWorkflow}
-                  onChange={(e) => setUseWorkflow(e.target.checked)}
-                  className="sr-only"
-                />
-                <div className={`relative w-11 h-6 rounded-full transition-colors ${
-                  useWorkflow ? 'bg-blue-600' : 'bg-gray-300'
-                }`}>
-                  <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform ${
-                    useWorkflow ? 'translate-x-5' : 'translate-x-0'
-                  }`}></div>
-                </div>
-                <span className="ml-2 text-sm font-medium text-gray-700">
-                  LangGraph 워크플로우
-                </span>
-              </label>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3 text-sm">
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-blue-500 rounded-full mr-1"></div>
-              <span>주요 그룹</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
-              <span>부 그룹</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-yellow-500 rounded-full mr-1"></div>
-              <span>이상치</span>
-            </div>
-          </div>
-        </div>
-        
-        {/* 상태 표시 영역 */}
-        <div className="flex items-center gap-3">
-          {useWorkflow && <WorkflowStatusBadge />}
-          
-          <div className="flex items-center py-2 px-4 text-sm bg-indigo-100 text-indigo-700 rounded-lg">
-            <Globe size={16} className="mr-2" />
-            다국어 유사도 분석 활성화
-          </div>
-          
-          {useWorkflow && (
-            <div className="flex items-center py-2 px-4 text-sm bg-green-100 text-green-700 rounded-lg">
-              <Workflow size={16} className="mr-2" />
-              LangChain + LangGraph 사용 중
-            </div>
-          )}
-        </div>
-      </div>
+    
 
-      {/* 기존 채팅 메시지 영역 - 변경 없음 */}
-      <div className="flex-1 grid overflow-y-auto pt-4" 
-           style={{ gridTemplateColumns: `repeat(${selectedModels.length + 1}, minmax(0, 1fr))` }}>
-        {/* 기존 메시지 렌더링 로직과 동일... */}
+      {/* 채팅 메시지 영역 (유동적 크기 적용) */}
+      <div className="chat-container grid overflow-hidden" style={{ gridTemplateColumns: `repeat(${selectedModels.length + 1}, minmax(0, 1fr))` }}>
         {selectedModels.map((modelId) => (
-          <div key={modelId} className="flex flex-col border-r h-full overflow-hidden">
-            <div className="flex-1 overflow-y-auto p-4">
+          <div key={modelId} className="border-r flex-1 overflow-y-auto chat-column">
+            <div className="h-full px-4 py-3">
               {messages[modelId]?.map((message, index) => {
                 const messageId = message.requestId || generateRequestId();
                 return (
                   <div key={index} className={`flex ${message.isUser ? "justify-end" : "justify-start"} mb-4`}>
-                    <div
-                      className={`max-w-[85%] p-4 rounded-2xl ${
-                        message.isUser 
-                          ? "bg-purple-600 text-white" 
-                          : `${getModelColor(modelId, messageId)} text-gray-800`
-                      }`}
-                    >
+                    <div className={`${
+                      message.isUser 
+                        ? "aiofai-user-message" 
+                        : "aiofai-bot-message"
+                    }`}>
                       {message.text}
                       {!message.isUser && (
                         <div className="mt-2 flex flex-wrap gap-1">
@@ -533,20 +633,22 @@ const ChatBox = () => {
                 );
               })}
               {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-100 text-gray-800 p-4 rounded-2xl">
+                <div className="flex justify-start mb-4">
+                  <div className="aiofai-bot-message">
                     {useWorkflow ? '워크플로우 실행 중...' : '분석중...'}
                   </div>
                 </div>
               )}
+              {/* 하단 여백을 위한 스페이서 */}
+              <div className="h-3"></div>
               <div ref={messagesEndRefs.current[modelId]} />
             </div>
           </div>
         ))}
 
         {/* 최적 답변 컬럼도 기존과 동일하지만 워크플로우 사용 표시 추가 */}
-        <div className="flex flex-col h-full overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto chat-column">
+          <div className="h-full px-4 py-3">
             {(() => {
               const userMessages = messages.optimal 
                 ? messages.optimal.filter(msg => msg.isUser)
@@ -582,7 +684,7 @@ const ChatBox = () => {
                 const userMessageElement = (
                   <div className="mb-2">
                     <div className="flex justify-end">
-                      <div className="bg-purple-600 text-white p-3 rounded-2xl max-w-[85%]">
+                      <div className="aiofai-user-message">
                         {message.text}
                       </div>
                     </div>
@@ -636,7 +738,7 @@ const ChatBox = () => {
                           )}
                         </div>
                         
-                        <div className="bg-gray-100 p-4 rounded-2xl space-y-4">
+                        <div className="optimal-analysis space-y-4">
                           <div>
                             <div className="font-semibold mb-2">✨ 최적의 답변:</div>
                             <div className="bg-white p-3 rounded-xl">
@@ -684,7 +786,7 @@ const ChatBox = () => {
                         <div className="flex justify-between items-center text-sm text-yellow-600 mb-2">
                           <span>⏳ {useWorkflow ? '워크플로우 실행 중...' : '분석 중...'}</span>
                         </div>
-                        <div className="bg-gray-100 p-4 rounded-2xl space-y-4">
+                        <div className="optimal-analysis space-y-4">
                           <div className="flex items-center justify-center p-4">
                             <div className="animate-pulse flex space-x-4">
                               <div className="h-3 w-3 bg-gray-300 rounded-full"></div>
@@ -710,22 +812,22 @@ const ChatBox = () => {
         </div>
       </div>
 
-      {/* 기존 입력 영역 - 변경 없음 */}
-      <div className="border-t p-4 w-full flex-shrink-0 bg-white sticky bottom-0 z-20">
-        <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto flex items-center bg-white border rounded-xl p-2">
+      {/* 세련된 입력창 - 미리보기 스타일 적용 */}
+      <div className="aiofai-input-area">
+        <form onSubmit={handleSendMessage} className="aiofai-input-box">
           <input
             type="text"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             placeholder="메시지를 입력하세요..."
-            className="flex-1 px-3 py-2 focus:outline-none"
+            className="input-field"
             disabled={isLoading}
           />
           
           <button
             type="button"
             onClick={() => fileInputRef.current.click()}
-            className="p-2 rounded-lg hover:bg-gray-100 mr-2"
+            className="aiofai-send-button mr-2"
             disabled={isLoading}
           >
             <Camera size={20} />
@@ -752,10 +854,10 @@ const ChatBox = () => {
 
           <button 
             type="submit" 
-            disabled={isLoading} 
-            className="p-2 rounded-lg hover:bg-gray-100"
+            disabled={isLoading || !inputMessage.trim()} 
+            className="aiofai-send-button"
           >
-            <Send className="w-5 h-5 text-gray-600" />
+            <Send className="w-5 h-5" />
           </button>
         </form>
       </div>

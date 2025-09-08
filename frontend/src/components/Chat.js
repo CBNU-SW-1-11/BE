@@ -1,8 +1,9 @@
 // components/Chat.js
 import React from 'react';
+import { safeJsonParse } from '../utils/safeJson';
 
 const Chat = () => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = safeJsonParse(localStorage.getItem('user'), {});
 
   return (
     <div className="p-4">

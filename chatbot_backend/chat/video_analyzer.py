@@ -184,7 +184,7 @@ def log_once(message, level="INFO"):
         print(f"[{level}] {message}")
         _logged_messages.add(message)
 
-def call_groq_llm_enhanced(prompt, system_prompt="", model="llama3-70b-8192", max_retries=3):
+def call_groq_llm_enhanced(prompt, system_prompt="", model="llama-3.1-8b-instant", max_retries=3):
     """개선된 LLM 호출 함수 - Rate Limiting 강화 및 로그 중복 제거"""
     
     # Rate Limiting을 위한 전역 변수
@@ -665,7 +665,7 @@ class GPTFeatureExtractor:
             response = call_groq_llm_enhanced(
                 prompt, 
                 "비디오 분석 전문가로서 정확한 수치로 특징을 추출합니다.",
-                model="llama3-70b-8192"
+                model="llama-3.1-8b-instant"
             )
             
             try:
@@ -1306,7 +1306,7 @@ class AdvancedSceneAnalyzer:
             final_caption = call_groq_llm_enhanced(
                 llm_prompt,
                 "당신은 비디오 분석 전문가입니다. 주어진 모든 정보를 정확히 반영하여 생생하고 상세한 한국어 캡션을 작성합니다.",
-                model="llama3-70b-8192"
+                model="llama-3.1-8b-instant"
             )
             
             if final_caption and len(final_caption) > 50:
